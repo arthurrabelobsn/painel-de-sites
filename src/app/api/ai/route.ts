@@ -3,7 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 import { LANG_NAMES, type Lang } from "@/lib/data/locales";
 import { nicheById } from "@/lib/data/niches";
 
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+// Ordem de tentativa: o modelo configurado e, se o Google tiver aposentado ele, os seguintes.
+// "gemini-flash-latest" aponta sempre para o Flash mais recente.
+const MODELS = [
+  ...new Set([process.env.GEMINI_MODEL, "gemini-3.8-flash", "gemini-flash-latest"].filter(Boolean) as string[]),
+];
+
+/** Erro que indica modelo aposentado/inexistente: vale tentar o próximo */
+const isModelGone = (status?: number, msg = "") =>
+  status === 404 || /no longer available|not found|is not supported|deprecated/i.test(msg);
 
 const LANG_EN: Record<Lang, string> = {
   en: "English (UK/Ireland)",
@@ -76,16 +84,23 @@ ${instructions ? `Extra instructions from the user (in Portuguese, apply them): 
 Current texts (JSON):
 ${JSON.stringify({ headline: site.headline, sub: site.sub, about: site.about, services: site.services, benefits: site.benefits })}`;
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.8 },
-    }),
-  });
+  let res!: Response;
+  let data: { error?: { message?: string; status?: string }; candidates?: { content?: { parts?: { text?: string }[] } }[] } = {};
+  let MODEL = MODELS[0];
+  for (const model of MODELS) {
+    MODEL = model;
+    res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.8 },
+      }),
+    });
+    data = await res.json();
+    if (res.ok || !isModelGone(res.status, data?.error?.message)) break;
+  }
 
-  const data = await res.json();
   if (!res.ok) {
     const msg = data?.error?.message ?? "Erro desconhecido";
     const status = data?.error?.status;
