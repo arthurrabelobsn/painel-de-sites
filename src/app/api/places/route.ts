@@ -90,25 +90,27 @@ export async function POST(req: Request) {
   const { niche: nicheId, country: countryCode, city, pageToken } = await req.json();
   if (!city?.trim()) return NextResponse.json({ error: "Informe a cidade." }, { status: 400 });
 
-  // Limite diário: só buscas novas consomem (continuação via pageToken não)
+  // Limite diário: só buscas novas que DERAM CERTO contam ("Carregar mais" não conta).
+  // Aqui só verifica; o consumo acontece depois que o Google responde com sucesso.
   const unlimited = isExempt(user.email);
+  const counts = !pageToken && !unlimited;
   let used: number | null = null;
-  if (!pageToken && !unlimited) {
-    const { data, error } = await supabase.rpc("consume_search", { p_limit: DAILY_LIMIT });
+  if (counts) {
+    const { data, error } = await supabase.rpc("searches_today");
     if (error)
       return NextResponse.json(
         { error: "Não foi possível verificar o limite de buscas. Rode o arquivo supabase/migrations/002_limite_buscas.sql no Supabase." },
         { status: 500 }
       );
-    if (data === null)
+    used = (data as number) ?? 0;
+    if (used >= DAILY_LIMIT)
       return NextResponse.json(
         {
           error: `Você já usou suas ${DAILY_LIMIT} buscas de hoje. O limite renova à meia-noite (horário de Brasília).`,
-          quota: { used: DAILY_LIMIT, limit: DAILY_LIMIT, unlimited } satisfies SearchQuota,
+          quota: { used, limit: DAILY_LIMIT, unlimited } satisfies SearchQuota,
         },
         { status: 429 }
       );
-    used = data as number;
   }
 
   const country = countryByCode(countryCode);
@@ -138,8 +140,17 @@ export async function POST(req: Request) {
 
     const data = await res.json();
     if (!res.ok) {
+      if (page > 0) break; // já temos resultados das páginas anteriores
+      const status = data?.error?.status;
       const msg = data?.error?.message ?? "Erro ao consultar o Google.";
-      return NextResponse.json({ error: `Google Places: ${msg}` }, { status: 502 });
+      const friendly =
+        status === "PERMISSION_DENIED"
+          ? "O Google recusou a chave: confira se a “Places API (New)” está ativada no mesmo projeto da chave, se a chave permite essa API e se o faturamento/teste do Google Cloud foi concluído."
+          : status === "RESOURCE_EXHAUSTED"
+            ? "Cota diária do Google atingida. A busca volta a funcionar amanhã."
+            : `Google Places: ${msg}`;
+      const quota: SearchQuota | null = used === null ? null : { used, limit: DAILY_LIMIT, unlimited };
+      return NextResponse.json({ error: friendly, quota }, { status: 502 });
     }
 
     const places: GooglePlace[] = data.places ?? [];
@@ -177,6 +188,12 @@ export async function POST(req: Request) {
       );
     const set = new Set((saved ?? []).map((s) => s.place_id));
     results.forEach((r) => (r.saved = set.has(r.place_id)));
+  }
+
+  // Busca deu certo: agora sim consome 1 do limite diário
+  if (counts) {
+    const { data } = await supabase.rpc("consume_search", { p_limit: DAILY_LIMIT });
+    used = (data as number | null) ?? DAILY_LIMIT;
   }
 
   const quota: SearchQuota | null = used === null ? null : { used, limit: DAILY_LIMIT, unlimited };
