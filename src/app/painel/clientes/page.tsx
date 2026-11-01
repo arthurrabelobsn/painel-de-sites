@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -8,6 +9,12 @@ import { NICHES } from "@/lib/data/niches";
 import { PageHeader } from "@/components/PageHeader";
 import { Notice } from "@/components/Notice";
 import type { PlaceResult, SearchQuota } from "@/app/api/places/route";
+
+// O mapa só carrega no navegador (e só baixa a biblioteca quando a página abre)
+const CityMap = dynamic(() => import("@/components/CityMap").then((m) => m.CityMap), {
+  ssr: false,
+  loading: () => <div className="h-[340px] animate-pulse rounded-xl bg-bg" />,
+});
 
 export default function FindClientsPage() {
   const router = useRouter();
@@ -195,6 +202,18 @@ export default function FindClientsPage() {
           {c.midCities.slice(0, 8).map((x) => (
             <button key={x} type="button" onClick={() => { setCustomCity(false); setCity(x); }} className={`rounded-full px-2.5 py-1 text-[12px] transition ${city === x ? "bg-ink text-white" : "bg-bg text-muted hover:text-ink"}`}>{x}</button>
           ))}
+        </div>
+
+        <div className="mt-4">
+          <p className="mb-2 text-[13px] text-muted">Ou clique numa cidade no mapa:</p>
+          <CityMap
+            country={c}
+            selected={city}
+            onSelect={(x) => {
+              setCustomCity(false);
+              setCity(x);
+            }}
+          />
         </div>
       </div>
 

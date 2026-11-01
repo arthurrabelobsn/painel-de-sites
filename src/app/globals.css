@@ -67,3 +67,16 @@ body {
 @utility chip {
   @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-medium;
 }
+
+/* Mapa de cidades: tiles em tons neutros para combinar com o painel */
+.city-map-tiles {
+  filter: grayscale(0.9) contrast(0.92) brightness(1.04);
+}
+.leaflet-container {
+  font-family: var(--font-sans);
+}
+.leaflet-tooltip {
+  font-weight: 600;
+  font-size: 12px;
+  border-radius: 8px;
+}
