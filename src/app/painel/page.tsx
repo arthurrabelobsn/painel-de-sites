@@ -1,13 +1,11 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getSessionUser } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/PageHeader";
 import { STATUS } from "@/lib/types";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
 
   const [{ data: leads }, { count: sitesCount }, { data: profile }] = await Promise.all([
     supabase.from("leads").select("id,name,status,city,created_at").order("created_at", { ascending: false }),

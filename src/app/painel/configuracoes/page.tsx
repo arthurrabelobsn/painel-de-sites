@@ -15,9 +15,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const user = (await supabase.auth.getSession()).data.session?.user;
       const { data } = await supabase.from("profiles").select("*").eq("id", user!.id).single();
       setP(data ?? { id: user!.id });
       setLoaded(true);
@@ -26,9 +24,7 @@ export default function SettingsPage() {
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = (await supabase.auth.getSession()).data.session?.user;
     const { error } = await supabase.from("profiles").upsert({
       id: user!.id,
       full_name: p.full_name ?? null,

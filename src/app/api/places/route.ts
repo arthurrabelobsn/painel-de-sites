@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getSessionUser } from "@/lib/supabase/server";
 import { countryByCode } from "@/lib/data/locales";
 import { nicheById } from "@/lib/data/niches";
 
@@ -64,9 +64,7 @@ export type SearchQuota = { used: number; limit: number; unlimited: boolean };
 /** Quantas buscas o usuário já fez hoje */
 export async function GET() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   const { data } = await supabase.rpc("searches_today");
   const quota: SearchQuota = { used: (data as number) ?? 0, limit: DAILY_LIMIT, unlimited: isExempt(user.email) };
@@ -75,9 +73,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
 
   const key = process.env.GOOGLE_PLACES_API_KEY;

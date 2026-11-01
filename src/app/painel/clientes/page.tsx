@@ -14,6 +14,7 @@ export default function FindClientsPage() {
   const [niche, setNiche] = useState(NICHES[0].id);
   const [country, setCountry] = useState("PT");
   const [city, setCity] = useState("");
+  const [customCity, setCustomCity] = useState(false);
   const [results, setResults] = useState<PlaceResult[]>([]);
   const [nextToken, setNextToken] = useState<string | null>(null);
   const [meta, setMeta] = useState<{ scanned: number; query: string } | null>(null);
@@ -63,9 +64,7 @@ export default function FindClientsPage() {
   async function save(r: PlaceResult, open: boolean) {
     setBusyId(r.place_id);
     const supabase = createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = (await supabase.auth.getSession()).data.session?.user;
     const { data, error } = await supabase
       .from("leads")
       .upsert(
@@ -127,7 +126,7 @@ export default function FindClientsPage() {
         >
           <div>
             <label className="label" htmlFor="country">País</label>
-            <select id="country" className="input" value={country} onChange={(e) => { setCountry(e.target.value); setCity(""); }}>
+            <select id="country" className="input" value={country} onChange={(e) => { setCountry(e.target.value); setCity(""); setCustomCity(false); }}>
               {COUNTRIES.map((c) => (
                 <option key={c.code} value={c.code}>{c.flag} {c.name}</option>
               ))}
@@ -135,8 +134,35 @@ export default function FindClientsPage() {
           </div>
           <div>
             <label className="label" htmlFor="city">Cidade</label>
-            <input id="city" list="cities" className="input" placeholder={`ex.: ${c.cities[0]}`} value={city} onChange={(e) => setCity(e.target.value)} />
-            <datalist id="cities">{c.cities.map((x) => <option key={x} value={x} />)}</datalist>
+            {customCity ? (
+              <div className="flex gap-2">
+                <input id="city" autoFocus className="input" placeholder="Digite a cidade" value={city} onChange={(e) => setCity(e.target.value)} />
+                <button type="button" className="btn-ghost shrink-0 px-3" onClick={() => { setCustomCity(false); setCity(""); }} title="Voltar para a lista">
+                  Lista
+                </button>
+              </div>
+            ) : (
+              <select
+                id="city"
+                className="input"
+                value={city}
+                onChange={(e) => {
+                  if (e.target.value === "__outra") {
+                    setCustomCity(true);
+                    setCity("");
+                  } else setCity(e.target.value);
+                }}
+              >
+                <option value="" disabled>Escolha a cidade…</option>
+                <optgroup label="Cidades médias — menos concorrência">
+                  {c.midCities.map((x) => <option key={x} value={x}>{x}</option>)}
+                </optgroup>
+                <optgroup label="Cidades grandes">
+                  {c.cities.map((x) => <option key={x} value={x}>{x}</option>)}
+                </optgroup>
+                <option value="__outra">✏️ Outra cidade…</option>
+              </select>
+            )}
           </div>
           <button className="btn-accent h-[46px] px-6" disabled={loading || blocked}>
             {loading && !results.length ? "Buscando…" : blocked ? "Limite de hoje atingido" : "Buscar negócios"}
@@ -165,8 +191,9 @@ export default function FindClientsPage() {
           Idioma das mensagens e do site: <b>{LANG_NAMES[c.lang]}</b>. Dica: cidades médias costumam ter mais negócios sem site que capitais.
         </p>
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {c.cities.map((x) => (
-            <button key={x} type="button" onClick={() => setCity(x)} className="rounded-full bg-bg px-2.5 py-1 text-[12px] text-muted hover:text-ink">{x}</button>
+          <span className="py-1 text-[12px] text-muted">Sugestões:</span>
+          {c.midCities.slice(0, 8).map((x) => (
+            <button key={x} type="button" onClick={() => { setCustomCity(false); setCity(x); }} className={`rounded-full px-2.5 py-1 text-[12px] transition ${city === x ? "bg-ink text-white" : "bg-bg text-muted hover:text-ink"}`}>{x}</button>
           ))}
         </div>
       </div>

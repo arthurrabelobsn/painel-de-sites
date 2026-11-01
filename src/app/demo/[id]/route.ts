@@ -13,6 +13,10 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "X-Robots-Tag": "noindex, nofollow",
+      // A demo roda isolada: sem scripts e sem acesso aos cookies do painel
+      "Content-Security-Policy":
+        "sandbox allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation; script-src 'none'; object-src 'none'; base-uri 'none'",
+      "X-Content-Type-Options": "nosniff",
       "Cache-Control": "public, max-age=60",
     },
   });

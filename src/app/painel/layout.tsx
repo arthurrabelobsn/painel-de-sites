@@ -1,15 +1,11 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/Sidebar";
 
 export default async function PanelLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) redirect("/login");
-
-  const name = (user.user_metadata?.full_name as string) || user.email || "";
+  const name = user.name;
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">

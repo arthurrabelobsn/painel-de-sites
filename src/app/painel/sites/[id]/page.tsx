@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getSessionUser } from "@/lib/supabase/server";
 import { countryByCode } from "@/lib/data/locales";
 import { defaultSiteData } from "@/lib/templates/defaults";
 import type { SiteData, TemplateId } from "@/lib/templates/types";
@@ -24,9 +24,7 @@ export default async function SitePage({
   const { id } = await params;
   const { lead: leadId } = await searchParams;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   const { data: profile } = await supabase.from("profiles").select("gemini_api_key").eq("id", user!.id).single();
   const hasAI = !!profile?.gemini_api_key || !!process.env.GEMINI_API_KEY;
 

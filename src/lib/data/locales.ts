@@ -10,20 +10,51 @@ export const LANG_NAMES: Record<Lang, string> = {
   nl: "Holandês",
 };
 
-export type Country = { code: string; name: string; lang: Lang; flag: string; cities: string[] };
+export type Country = {
+  code: string;
+  name: string;
+  lang: Lang;
+  flag: string;
+  /** cidades grandes */
+  cities: string[];
+  /** cidades médias: costumam ter mais negócios sem site e menos concorrência */
+  midCities: string[];
+};
 
 export const COUNTRIES: Country[] = [
-  { code: "PT", name: "Portugal", lang: "pt", flag: "🇵🇹", cities: ["Lisboa", "Porto", "Braga", "Coimbra", "Faro", "Aveiro", "Setúbal", "Funchal"] },
-  { code: "ES", name: "Espanha", lang: "es", flag: "🇪🇸", cities: ["Madrid", "Barcelona", "Valencia", "Sevilla", "Málaga", "Bilbao", "Zaragoza", "Alicante"] },
-  { code: "FR", name: "França", lang: "fr", flag: "🇫🇷", cities: ["Paris", "Lyon", "Marseille", "Toulouse", "Nice", "Nantes", "Bordeaux", "Lille"] },
-  { code: "IT", name: "Itália", lang: "it", flag: "🇮🇹", cities: ["Roma", "Milano", "Napoli", "Torino", "Bologna", "Firenze", "Bari", "Verona"] },
-  { code: "DE", name: "Alemanha", lang: "de", flag: "🇩🇪", cities: ["Berlin", "München", "Hamburg", "Köln", "Frankfurt", "Stuttgart", "Düsseldorf", "Leipzig"] },
-  { code: "AT", name: "Áustria", lang: "de", flag: "🇦🇹", cities: ["Wien", "Graz", "Linz", "Salzburg", "Innsbruck"] },
-  { code: "CH", name: "Suíça (alemão)", lang: "de", flag: "🇨🇭", cities: ["Zürich", "Basel", "Bern", "Luzern", "St. Gallen"] },
-  { code: "NL", name: "Países Baixos", lang: "nl", flag: "🇳🇱", cities: ["Amsterdam", "Rotterdam", "Den Haag", "Utrecht", "Eindhoven", "Groningen"] },
-  { code: "BE", name: "Bélgica (francês)", lang: "fr", flag: "🇧🇪", cities: ["Bruxelles", "Liège", "Namur", "Charleroi"] },
-  { code: "IE", name: "Irlanda", lang: "en", flag: "🇮🇪", cities: ["Dublin", "Cork", "Galway", "Limerick", "Waterford"] },
-  { code: "GB", name: "Reino Unido", lang: "en", flag: "🇬🇧", cities: ["London", "Manchester", "Birmingham", "Leeds", "Glasgow", "Liverpool", "Bristol", "Edinburgh"] },
+  { code: "PT", name: "Portugal", lang: "pt", flag: "🇵🇹",
+    cities: ["Lisboa", "Porto", "Braga", "Coimbra", "Funchal", "Vila Nova de Gaia", "Amadora"],
+    midCities: ["Aveiro", "Faro", "Setúbal", "Leiria", "Viseu", "Guimarães", "Évora", "Viana do Castelo", "Santarém", "Castelo Branco", "Portimão", "Ponta Delgada", "Bragança", "Vila Real", "Covilhã", "Caldas da Rainha", "Póvoa de Varzim", "Barcelos"] },
+  { code: "ES", name: "Espanha", lang: "es", flag: "🇪🇸",
+    cities: ["Madrid", "Barcelona", "Valencia", "Sevilla", "Zaragoza", "Málaga", "Murcia", "Palma", "Bilbao", "Alicante"],
+    midCities: ["Córdoba", "Valladolid", "Vigo", "Gijón", "Granada", "A Coruña", "Vitoria-Gasteiz", "Elche", "Oviedo", "Pamplona", "Santander", "Castellón de la Plana", "Burgos", "Albacete", "Salamanca", "Logroño", "Badajoz", "Huelva", "Tarragona", "León", "Cádiz", "Jaén", "Girona", "Toledo"] },
+  { code: "FR", name: "França", lang: "fr", flag: "🇫🇷",
+    cities: ["Paris", "Marseille", "Lyon", "Toulouse", "Nice", "Nantes", "Montpellier", "Strasbourg", "Bordeaux", "Lille"],
+    midCities: ["Rennes", "Reims", "Toulon", "Saint-Étienne", "Le Havre", "Grenoble", "Dijon", "Angers", "Nîmes", "Clermont-Ferrand", "Le Mans", "Aix-en-Provence", "Brest", "Tours", "Amiens", "Limoges", "Perpignan", "Metz", "Besançon", "Orléans", "Rouen", "Mulhouse", "Caen", "Nancy", "Avignon", "Pau", "La Rochelle", "Poitiers"] },
+  { code: "IT", name: "Itália", lang: "it", flag: "🇮🇹",
+    cities: ["Roma", "Milano", "Napoli", "Torino", "Palermo", "Genova", "Bologna", "Firenze", "Bari", "Catania"],
+    midCities: ["Venezia", "Verona", "Messina", "Padova", "Trieste", "Brescia", "Parma", "Taranto", "Prato", "Modena", "Reggio Calabria", "Reggio Emilia", "Perugia", "Ravenna", "Livorno", "Cagliari", "Foggia", "Rimini", "Salerno", "Ferrara", "Sassari", "Latina", "Monza", "Bergamo", "Pescara", "Trento", "Vicenza", "Lecce"] },
+  { code: "DE", name: "Alemanha", lang: "de", flag: "🇩🇪",
+    cities: ["Berlin", "Hamburg", "München", "Köln", "Frankfurt am Main", "Stuttgart", "Düsseldorf", "Leipzig", "Dortmund", "Essen"],
+    midCities: ["Bremen", "Dresden", "Hannover", "Nürnberg", "Duisburg", "Bochum", "Wuppertal", "Bielefeld", "Bonn", "Münster", "Mannheim", "Karlsruhe", "Augsburg", "Wiesbaden", "Mönchengladbach", "Gelsenkirchen", "Aachen", "Braunschweig", "Kiel", "Chemnitz", "Halle (Saale)", "Magdeburg", "Freiburg im Breisgau", "Krefeld", "Mainz", "Lübeck", "Erfurt", "Rostock", "Kassel", "Regensburg"] },
+  { code: "AT", name: "Áustria", lang: "de", flag: "🇦🇹",
+    cities: ["Wien", "Graz", "Linz", "Salzburg", "Innsbruck"],
+    midCities: ["Klagenfurt", "Villach", "Wels", "Sankt Pölten", "Dornbirn", "Wiener Neustadt", "Steyr", "Feldkirch", "Bregenz", "Leoben", "Krems an der Donau", "Baden"] },
+  { code: "CH", name: "Suíça (alemão)", lang: "de", flag: "🇨🇭",
+    cities: ["Zürich", "Basel", "Bern", "Winterthur", "Luzern"],
+    midCities: ["St. Gallen", "Biel/Bienne", "Thun", "Köniz", "Schaffhausen", "Chur", "Uster", "Zug", "Aarau", "Olten", "Baden", "Wil", "Rapperswil-Jona", "Solothurn"] },
+  { code: "NL", name: "Países Baixos", lang: "nl", flag: "🇳🇱",
+    cities: ["Amsterdam", "Rotterdam", "Den Haag", "Utrecht", "Eindhoven", "Groningen", "Tilburg"],
+    midCities: ["Almere", "Breda", "Nijmegen", "Apeldoorn", "Haarlem", "Arnhem", "Enschede", "Amersfoort", "Zaanstad", "Den Bosch", "Zwolle", "Leiden", "Maastricht", "Dordrecht", "Zoetermeer", "Deventer", "Delft", "Alkmaar", "Venlo", "Leeuwarden"] },
+  { code: "BE", name: "Bélgica (francês)", lang: "fr", flag: "🇧🇪",
+    cities: ["Bruxelles", "Liège", "Charleroi", "Namur"],
+    midCities: ["Mons", "La Louvière", "Tournai", "Seraing", "Verviers", "Mouscron", "Wavre", "Nivelles", "Arlon", "Ottignies-Louvain-la-Neuve", "Waterloo", "Binche"] },
+  { code: "IE", name: "Irlanda", lang: "en", flag: "🇮🇪",
+    cities: ["Dublin", "Cork", "Limerick", "Galway"],
+    midCities: ["Waterford", "Drogheda", "Dundalk", "Swords", "Bray", "Navan", "Kilkenny", "Ennis", "Carlow", "Tralee", "Newbridge", "Athlone", "Sligo", "Wexford", "Letterkenny"] },
+  { code: "GB", name: "Reino Unido", lang: "en", flag: "🇬🇧",
+    cities: ["London", "Birmingham", "Manchester", "Glasgow", "Liverpool", "Leeds", "Sheffield", "Edinburgh", "Bristol", "Cardiff"],
+    midCities: ["Leicester", "Coventry", "Nottingham", "Newcastle upon Tyne", "Belfast", "Brighton", "Plymouth", "Southampton", "Reading", "Derby", "Wolverhampton", "Stoke-on-Trent", "Milton Keynes", "Northampton", "Norwich", "Swansea", "Aberdeen", "Exeter", "York", "Bournemouth", "Peterborough", "Oxford", "Cambridge", "Ipswich", "Bath", "Cheltenham", "Chester", "Preston"] },
 ];
 
 export const countryByCode = (code: string) => COUNTRIES.find((c) => c.code === code) ?? COUNTRIES[0];

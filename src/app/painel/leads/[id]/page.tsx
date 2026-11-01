@@ -1,14 +1,12 @@
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getSessionUser } from "@/lib/supabase/server";
 import { LeadDetail } from "./LeadDetail";
 import type { Lead, Profile } from "@/lib/types";
 
 export default async function LeadPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
 
   const [{ data: lead }, { data: sites }, { data: profile }] = await Promise.all([
     supabase.from("leads").select("*").eq("id", id).single(),

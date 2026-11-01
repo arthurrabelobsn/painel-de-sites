@@ -2,10 +2,22 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { renderSite } from "@/lib/templates/render";
-import { TEMPLATES, type ServiceItem, type SiteData, type TemplateId } from "@/lib/templates/types";
+import {
+  BLOCK_LABELS,
+  BLOCK_POSITIONS,
+  POSITION_LABELS,
+  SECTION_KEYS,
+  SECTION_LABELS,
+  TEMPLATES,
+  type Block,
+  type BlockPosition,
+  type ServiceItem,
+  type SiteData,
+  type TemplateId,
+} from "@/lib/templates/types";
 import { LANG_NAMES } from "@/lib/data/locales";
 import { nicheById } from "@/lib/data/niches";
 import { downloadHtml, downloadZip, exportPdf, resizeImage } from "@/lib/export";
@@ -45,19 +57,21 @@ export function Editor({
   const [dirty, setDirty] = useState(!siteId);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
-  const [aiInstructions, setAiInstructions] = useState("");
-  const [beforeAI, setBeforeAI] = useState<SiteData | null>(null);
+  const [aiInput, setAiInput] = useState("");
+  const [aiLog, setAiLog] = useState<{ req: string; summary: string; ok: boolean }[]>([]);
+  const [undoStack, setUndoStack] = useState<SiteData[]>([]);
   const [showPublish, setShowPublish] = useState(false);
   const [origin, setOrigin] = useState("");
 
   useEffect(() => setOrigin(window.location.origin), []);
 
-  // Prévia com pequeno atraso para não recarregar a cada tecla
-  const [previewHtml, setPreviewHtml] = useState(() => renderSite(initial));
+  // Prévia e miniaturas usam uma cópia com atraso: digitar não recarrega 4 iframes a cada tecla
+  const [deb, setDeb] = useState<SiteData>(initial);
   useEffect(() => {
-    const t = setTimeout(() => setPreviewHtml(renderSite(d)), 350);
+    const t = setTimeout(() => setDeb(d), 450);
     return () => clearTimeout(t);
   }, [d]);
+  const previewHtml = useMemo(() => renderSite(deb), [deb]);
 
   // Aviso ao sair com alterações não salvas
   useEffect(() => {
@@ -81,9 +95,7 @@ export function Editor({
   async function save(): Promise<string | null> {
     setBusy("save");
     const html = renderSite(d);
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = (await supabase.auth.getSession()).data.session?.user;
     let id = siteId;
     if (id) {
       const { error } = await supabase
@@ -134,24 +146,53 @@ export function Editor({
     setBusy(null);
   }
 
-  async function runAI() {
+  async function runAI(text: string) {
+    const req = text.trim();
+    if (!req) return;
     setBusy("ai");
     try {
+      // fotos e logo não vão para a IA (pesadas e desnecessárias)
+      const site = { ...d, logo: "", heroImage: "" };
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ site: d, instructions: aiInstructions }),
+        body: JSON.stringify({ site, request: req }),
       });
       const out = await res.json();
       if (!res.ok) throw new Error(out.error);
-      setBeforeAI(d);
-      setD((p) => ({ ...p, headline: out.headline, sub: out.sub, about: out.about, services: out.services, benefits: out.benefits }));
-      setDirty(true);
-      flash("ok", "Textos personalizados pela IA. Revise antes de enviar.");
+      const changed = out.patch && Object.keys(out.patch).length > 0;
+      if (changed) {
+        setUndoStack((u) => [...u.slice(-19), d]);
+        setD((p) => ({ ...p, ...out.patch }));
+        setDirty(true);
+      }
+      setAiLog((l) => [...l, { req, summary: out.summary, ok: changed }]);
+      setAiInput("");
     } catch (e) {
-      flash("error", e instanceof Error ? e.message : "Erro na IA.");
+      setAiLog((l) => [...l, { req, summary: e instanceof Error ? e.message : "Erro na IA.", ok: false }]);
     }
     setBusy(null);
+  }
+
+  function undo() {
+    setUndoStack((u) => {
+      if (!u.length) return u;
+      setD(u[u.length - 1]);
+      setDirty(true);
+      return u.slice(0, -1);
+    });
+  }
+
+  function updateBlock(id: string, patch: Partial<Block>) {
+    set("blocks", (d.blocks ?? []).map((b) => (b.id === id ? { ...b, ...patch } : b)));
+  }
+  function moveBlock(id: string, dir: -1 | 1) {
+    const list = [...(d.blocks ?? [])];
+    const i = list.findIndex((b) => b.id === id);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    set("blocks", list);
   }
 
   async function onUpload(e: React.ChangeEvent<HTMLInputElement>, field: "logo" | "heroImage") {
@@ -228,7 +269,7 @@ export function Editor({
                 </p>
                 {TEMPLATES.map((t) => (
                   <button key={t.id} onClick={() => set("template", t.id as TemplateId)} className={`block w-full overflow-hidden rounded-2xl border-2 text-left transition ${d.template === t.id ? "border-ink" : "border-line hover:border-ink/40"}`}>
-                    <Thumb data={{ ...d, template: t.id }} />
+                    <Thumb data={deb} template={t.id} />
                     <div className="border-t border-line bg-surface p-3">
                       <p className="font-semibold">{t.name} {d.template === t.id && <span className="text-accent">✓</span>}</p>
                       <p className="text-[13px] text-muted">{t.description}</p>
@@ -246,6 +287,63 @@ export function Editor({
                 <Field label="Sobre o negócio" value={d.about} onChange={(v) => set("about", v)} area rows={4} />
                 <ItemsEditor label="Serviços" items={d.services} min={2} max={6} onChange={(v) => set("services", v)} />
                 <ItemsEditor label="Por que escolher (3 itens)" items={d.benefits} min={3} max={3} onChange={(v) => set("benefits", v)} />
+
+                <div className="border-t border-line pt-5">
+                  <label className="label">Seções do modelo</label>
+                  <div className="space-y-2">
+                    {SECTION_KEYS.map((k) => (
+                      <Toggle
+                        key={k}
+                        label={`Mostrar “${SECTION_LABELS[k]}”`}
+                        checked={!d.hidden?.[k]}
+                        onChange={(v) => set("hidden", { ...(d.hidden ?? {}), [k]: !v })}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <div className="border-t border-line pt-5">
+                  <label className="label">Seções extras</label>
+                  {(d.blocks ?? []).length === 0 ? (
+                    <p className="text-[13px] text-muted">
+                      Nenhuma ainda. Peça na aba <button className="font-semibold text-accent underline" onClick={() => setTab("ia")}>✨ IA</button>: “adicione perguntas frequentes”, “crie uma seção de preços”…
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {(d.blocks ?? []).map((b, i, arr) => (
+                        <div key={b.id} className="rounded-xl border border-line bg-surface p-2.5">
+                          <div className="mb-1.5 flex items-center justify-between text-[12px] text-muted">
+                            <span className="font-semibold text-ink">{BLOCK_LABELS[b.type]}</span>
+                            <span className="flex gap-1">
+                              <button className="px-1 hover:text-ink disabled:opacity-30" disabled={i === 0} onClick={() => moveBlock(b.id, -1)} aria-label="Subir">↑</button>
+                              <button className="px-1 hover:text-ink disabled:opacity-30" disabled={i === arr.length - 1} onClick={() => moveBlock(b.id, 1)} aria-label="Descer">↓</button>
+                              <button className="px-1 hover:text-danger" onClick={() => set("blocks", arr.filter((x) => x.id !== b.id))} aria-label="Remover">✕</button>
+                            </span>
+                          </div>
+                          <input className="input mb-1.5 py-1.5 text-[14px] font-semibold" value={b.title ?? ""} placeholder="Título da seção" onChange={(e) => updateBlock(b.id, { title: e.target.value })} />
+                          {b.type !== "custom" && (
+                            <textarea className="input mb-1.5 py-1.5 text-[13px]" rows={2} value={b.text ?? ""} placeholder="Texto" onChange={(e) => updateBlock(b.id, { text: e.target.value })} />
+                          )}
+                          {b.items && b.items.length > 0 && (
+                            <div className="mb-1.5 space-y-1">
+                              {b.items.map((it, j) => (
+                                <div key={j} className="flex gap-1">
+                                  <input className="input py-1 text-[13px]" value={it.title} onChange={(e) => updateBlock(b.id, { items: b.items!.map((x, k) => (k === j ? { ...x, title: e.target.value } : x)) })} />
+                                  {b.type === "pricing" && (
+                                    <input className="input w-24 py-1 text-[13px]" value={it.price ?? ""} placeholder="Preço" onChange={(e) => updateBlock(b.id, { items: b.items!.map((x, k) => (k === j ? { ...x, price: e.target.value } : x)) })} />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <select className="input py-1.5 text-[13px]" value={b.position} onChange={(e) => updateBlock(b.id, { position: e.target.value as BlockPosition })}>
+                            {BLOCK_POSITIONS.map((p) => <option key={p} value={p}>{POSITION_LABELS[p]}</option>)}
+                          </select>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
@@ -334,9 +432,9 @@ export function Editor({
 
             {tab === "ia" && (
               <>
-                <div className="rounded-2xl bg-bg p-4 text-[14px] leading-relaxed">
-                  A IA reescreve <b>só os textos</b> (título, subtítulo, sobre, serviços e diferenciais) para este negócio, em{" "}
-                  <b>{LANG_NAMES[d.lang]}</b>. Layout, contatos e cores não mudam.
+                <div className="rounded-2xl bg-bg p-4 text-[13px] leading-relaxed">
+                  Peça em português o que quiser mudar. A IA altera textos, cores e modelo, esconde seções e <b>cria seções novas</b>
+                  (perguntas frequentes, preços, passo a passo, chamadas…). Os textos do site saem em <b>{LANG_NAMES[d.lang]}</b>.
                 </div>
                 {!hasAI ? (
                   <Notice kind="info">
@@ -344,29 +442,65 @@ export function Editor({
                   </Notice>
                 ) : (
                   <>
-                    <div>
-                      <label className="label">Instruções extras (opcional, pode ser em português)</label>
+                    {aiLog.length > 0 && (
+                      <div className="space-y-2">
+                        {aiLog.map((m, i) => (
+                          <div key={i} className="space-y-1.5">
+                            <p className="ml-6 rounded-xl rounded-br-sm bg-ink px-3 py-2 text-[13px] text-white">{m.req}</p>
+                            <p className={`mr-6 rounded-xl rounded-bl-sm px-3 py-2 text-[13px] ${m.ok ? "bg-ok-soft text-ok" : "bg-bg text-muted"}`}>
+                              {m.ok ? "✓ " : ""}{m.summary}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        runAI(aiInput);
+                      }}
+                    >
                       <textarea
                         className="input min-h-24"
-                        value={aiInstructions}
-                        onChange={(e) => setAiInstructions(e.target.value)}
-                        placeholder="Ex.: mencionar atendimento 24h e emergências; tom mais jovem; serviços focados em cortes infantis…"
-                      />
-                    </div>
-                    <button className="btn-accent w-full" onClick={runAI} disabled={!!busy}>
-                      {busy === "ai" ? "Personalizando…" : "✨ Personalizar textos com IA"}
-                    </button>
-                    {beforeAI && (
-                      <button
-                        className="btn-ghost w-full"
-                        onClick={() => {
-                          setD(beforeAI);
-                          setBeforeAI(null);
+                        value={aiInput}
+                        onChange={(e) => setAiInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            runAI(aiInput);
+                          }
                         }}
-                      >
-                        ↩ Desfazer IA
-                      </button>
-                    )}
+                        placeholder="Ex.: adicione uma seção de perguntas frequentes sobre emergências e preços; deixe o título mais direto"
+                      />
+                      <div className="mt-2 flex gap-2">
+                        <button className="btn-accent flex-1" disabled={!!busy || !aiInput.trim()}>
+                          {busy === "ai" ? "Aplicando…" : "✨ Aplicar"}
+                        </button>
+                        {undoStack.length > 0 && (
+                          <button type="button" className="btn-ghost" onClick={undo} disabled={!!busy} title="Desfazer a última alteração da IA">
+                            ↩ Desfazer
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                    <div>
+                      <p className="mb-1.5 text-[12px] font-medium text-muted">Sugestões</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          "Reescreva todos os textos para ficarem específicos deste negócio e desta cidade",
+                          "Adicione uma seção de perguntas frequentes com 5 perguntas comuns deste nicho",
+                          "Adicione uma seção de preços com 3 opções (use preços de exemplo para eu editar)",
+                          "Adicione um passo a passo de como funciona o atendimento",
+                          "Adicione uma faixa de chamada para ação antes do contato",
+                          "Deixe o visual mais premium: ajuste as cores e o tom dos textos",
+                        ].map((sug) => (
+                          <button key={sug} type="button" disabled={!!busy} onClick={() => runAI(sug)} className="rounded-full border border-line bg-surface px-2.5 py-1 text-left text-[12px] hover:border-ink disabled:opacity-50">
+                            {sug}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-[12px] text-muted">A IA nunca inventa avaliações, prêmios ou dados de contato. Revise antes de enviar ao cliente.</p>
                   </>
                 )}
               </>
@@ -410,14 +544,14 @@ export function Editor({
   );
 }
 
-function Thumb({ data }: { data: SiteData }) {
-  const html = useMemo(() => renderSite({ ...data, showDemoBadge: false }, { forPdf: true }), [data]);
+const Thumb = memo(function Thumb({ data, template }: { data: SiteData; template: TemplateId }) {
+  const html = useMemo(() => renderSite({ ...data, template, showDemoBadge: false }, { forPdf: true }), [data, template]);
   return (
     <div className="pointer-events-none relative h-[190px] overflow-hidden bg-white">
-      <iframe title="miniatura" srcDoc={html} tabIndex={-1} className="absolute left-0 top-0 origin-top-left" style={{ width: 1280, height: 860, transform: "scale(0.28)" }} />
+      <iframe title="miniatura" srcDoc={html} tabIndex={-1} sandbox="" loading="lazy" className="absolute left-0 top-0 origin-top-left" style={{ width: 1280, height: 860, transform: "scale(0.28)" }} />
     </div>
   );
-}
+});
 
 function Field({ label, value, onChange, area, rows = 2 }: { label: string; value: string; onChange: (v: string) => void; area?: boolean; rows?: number }) {
   return (

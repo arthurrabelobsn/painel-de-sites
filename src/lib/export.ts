@@ -51,6 +51,8 @@ export async function exportPdf(data: SiteData) {
   }
 
   const iframe = document.createElement("iframe");
+  // sem allow-scripts: nada do HTML do site roda no domínio do painel
+  iframe.setAttribute("sandbox", "allow-same-origin");
   Object.assign(iframe.style, { position: "fixed", left: "-10000px", top: "0", width: "1280px", height: "900px", border: "0" });
   document.body.appendChild(iframe);
 

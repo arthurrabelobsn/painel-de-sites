@@ -1,5 +1,6 @@
 import { SITE_UI } from "../data/locales";
 import { heroArt, icon } from "./icons";
+import { applyBlocks } from "./blocks";
 import type { RenderOptions, SiteData } from "./types";
 
 export const esc = (s: string | number | null | undefined) =>
@@ -166,16 +167,16 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
 <header><div class="wrap"><a href="#" class="brand">${logo(d)}</a>
 <nav><a href="#services">${esc(ui.services)}</a><a href="#about">${esc(ui.about)}</a><a href="#contact">${esc(ui.contact)}</a></nav>
 ${d.phone ? `<a class="btn btn-main" style="padding:11px 18px;font-size:14px" href="${telHref(d)}">${icon("phone", 16)} ${esc(d.phone)}</a>` : ""}</div></header>
-<section class="hero"><div class="wrap"><div>
+<section data-sec="hero" class="hero"><div class="wrap"><div>
 <span class="eyebrow">${icon("pin", 16)} ${esc(d.city)}</span>
 <h1>${esc(d.headline)}</h1><p class="sub">${esc(d.sub)}</p>
 <div class="actions">${ctas(d)}</div>${rating(d, d.dark)}</div>${hero(d, "32px")}</div></section>
-<section id="services"><div class="wrap"><div class="sec-head"><span class="kicker">${esc(d.name)}</span><h2>${esc(ui.services)}</h2></div>
+<section data-sec="services" id="services"><div class="wrap"><div class="sec-head"><span class="kicker">${esc(d.name)}</span><h2>${esc(ui.services)}</h2></div>
 <div class="grid4">${d.services.map((s) => `<div class="card"><div class="ico">${icon(d.nicheId, 26)}</div><h3>${esc(s.title)}</h3><p>${esc(s.desc)}</p></div>`).join("")}</div></div></section>
-<section class="why"><div class="wrap"><div class="sec-head"><span class="kicker">${esc(d.name)}</span><h2>${esc(ui.why)}</h2></div>
+<section data-sec="why" class="why"><div class="wrap"><div class="sec-head"><span class="kicker">${esc(d.name)}</span><h2>${esc(ui.why)}</h2></div>
 <div class="grid3">${d.benefits.map((b) => `<div class="item"><h3>${esc(b.title)}</h3><p>${esc(b.desc)}</p></div>`).join("")}</div></div></section>
-<section id="about" class="about"><div class="wrap"><div><span class="kicker">${esc(ui.about)}</span><h2 style="font-size:40px;margin-bottom:20px">${esc(d.name)}</h2><p class="text">${esc(d.about)}</p></div>${hours(d)}</div></section>
-<section id="contact" class="contact" style="background:${d.light}"><div class="wrap"><div><span class="kicker">${esc(ui.contact)}</span><h2 style="font-size:40px;margin-bottom:28px">${esc(ui.findUs)}</h2>${contactList(d, d.primary)}<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:30px">${ctas(d)}</div></div>${map(d, o)}</div></section>
+<section data-sec="about" id="about" class="about"><div class="wrap"><div><span class="kicker">${esc(ui.about)}</span><h2 style="font-size:40px;margin-bottom:20px">${esc(d.name)}</h2><p class="text">${esc(d.about)}</p></div>${hours(d)}</div></section>
+<section data-sec="contact" id="contact" class="contact" style="background:${d.light}"><div class="wrap"><div><span class="kicker">${esc(ui.contact)}</span><h2 style="font-size:40px;margin-bottom:28px">${esc(ui.findUs)}</h2>${contactList(d, d.primary)}<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:30px">${ctas(d)}</div></div>${map(d, o)}</div></section>
 <footer><div class="wrap"><span>© ${new Date().getFullYear()} ${esc(d.name)}. ${esc(ui.rights)}</span><span>${esc(d.city)}</span></div></footer>
 ${sticky(d, o)}`;
   return doc(d, "family=Manrope:wght@400;600;700;800", css, body);
@@ -221,15 +222,15 @@ footer{border-top:1px solid rgba(255,255,255,.12);padding:30px 0;font-size:14px;
   const h1 = words.length > 2 ? `${esc(words.slice(0, -2).join(" "))} <em>${esc(words.slice(-2).join(" "))}</em>` : esc(d.headline);
   const body = `${badge(d)}
 <header><div class="wrap"><a href="#" class="brand">${logo(d, true)}</a>${d.phone ? `<a class="btn btn-main" style="padding:12px 20px;font-size:14px" href="${telHref(d)}">${icon("phone", 16)} ${esc(d.phone)}</a>` : ""}</div></header>
-<section class="hero"><div class="wrap"><h1>${h1}</h1>
+<section data-sec="hero" class="hero"><div class="wrap"><h1>${h1}</h1>
 <div class="row"><div><p class="sub">${esc(d.sub)}</p><div class="actions">${ctas(d)}</div>${rating(d, "#fff")}</div>${hero(d, "28px")}</div></div></section>
 <div class="marquee">${Array.from({ length: 3 }).map(() => d.services.map((s) => `<span>${esc(s.title)}</span><span>✦</span>`).join("")).join("")}</div>
-<section id="services"><div class="wrap"><h2 class="sec-title">${esc(ui.services)}</h2>
+<section data-sec="services" id="services"><div class="wrap"><h2 class="sec-title">${esc(ui.services)}</h2>
 <ul class="list">${d.services.map((s, i) => `<li><span class="n">0${i + 1}</span><h3>${esc(s.title)}</h3><p>${esc(s.desc)}</p></li>`).join("")}</ul></div></section>
-<section class="light"><div class="wrap"><h2 class="sec-title">${esc(ui.why)}</h2>
+<section data-sec="why" class="light"><div class="wrap"><h2 class="sec-title">${esc(ui.why)}</h2>
 <div class="grid3">${d.benefits.map((b) => `<div class="item"><div class="ico">${icon("check", 22, "#fff", 3)}</div><h3>${esc(b.title)}</h3><p style="opacity:.75">${esc(b.desc)}</p></div>`).join("")}</div></div></section>
-<section class="about"><div class="wrap"><div><h2 class="sec-title" style="margin-bottom:28px">${esc(ui.about)}</h2><p class="text">${esc(d.about)}</p></div>${hours(d)}</div></section>
-<section class="contact" style="padding-top:0"><div class="wrap"><div><h2 class="sec-title" style="margin-bottom:32px">${esc(ui.contact)}</h2>${contactList(d, d.primary)}<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:32px">${ctas(d)}</div></div>${map(d, o)}</div></section>
+<section data-sec="about" class="about"><div class="wrap"><div><h2 class="sec-title" style="margin-bottom:28px">${esc(ui.about)}</h2><p class="text">${esc(d.about)}</p></div>${hours(d)}</div></section>
+<section data-sec="contact" class="contact" style="padding-top:0"><div class="wrap"><div><h2 class="sec-title" style="margin-bottom:32px">${esc(ui.contact)}</h2>${contactList(d, d.primary)}<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:32px">${ctas(d)}</div></div>${map(d, o)}</div></section>
 <footer><div class="wrap">© ${new Date().getFullYear()} ${esc(d.name)} · ${esc(d.city)}. ${esc(ui.rights)}</div></footer>
 ${sticky(d, o)}`;
   return doc(d, "family=Archivo:wght@800;900&family=Inter+Tight:wght@400;500;700", css, body);
@@ -276,21 +277,20 @@ footer{padding:36px 0;text-align:center;font-size:14px;opacity:.6}
   const h1 = words.length > 3 ? `${esc(words.slice(0, -1).join(" "))} <i>${esc(words.slice(-1)[0])}</i>` : esc(d.headline);
   const body = `${badge(d)}
 <header><div class="wrap"><a href="#" class="brand">${logo(d)}</a><nav><a href="#services">${esc(ui.services)}</a><a href="#about">${esc(ui.about)}</a><a href="#contact">${esc(ui.contact)}</a></nav></div></header>
-<section class="hero" style="padding-bottom:40px"><div class="wrap"><h1>${h1}</h1><p class="sub">${esc(d.sub)}</p><div class="actions">${ctas(d)}</div>${rating(d, d.dark)}
+<section data-sec="hero" class="hero" style="padding-bottom:40px"><div class="wrap"><h1>${h1}</h1><p class="sub">${esc(d.sub)}</p><div class="actions">${ctas(d)}</div>${rating(d, d.dark)}
 <div class="frame">${hero(d, "36px", "meet")}</div></div></section>
-<section id="services"><div class="wrap"><div class="sec-head"><span class="k">${esc(d.name)}</span><h2>${esc(ui.services)}</h2></div>
+<section data-sec="services" id="services"><div class="wrap"><div class="sec-head"><span class="k">${esc(d.name)}</span><h2>${esc(ui.services)}</h2></div>
 <div class="grid2">${d.services.map((s) => `<div class="svc"><div class="ico">${icon(d.nicheId, 26)}</div><div><h3>${esc(s.title)}</h3><p>${esc(s.desc)}</p></div></div>`).join("")}</div></div></section>
-<section class="white"><div class="wrap"><div class="sec-head"><span class="k">${esc(d.name)}</span><h2>${esc(ui.why)}</h2></div>
+<section data-sec="why" class="white"><div class="wrap"><div class="sec-head"><span class="k">${esc(d.name)}</span><h2>${esc(ui.why)}</h2></div>
 <div class="benefits">${d.benefits.map((b) => `<div><div class="ico">${icon("check", 26, "#fff", 2.5)}</div><h3>${esc(b.title)}</h3><p>${esc(b.desc)}</p></div>`).join("")}</div></div></section>
-<section id="about" class="about"><div class="wrap"><div><span class="k" style="color:${d.primary};font-weight:700;letter-spacing:.14em;font-size:14px;text-transform:uppercase">${esc(ui.about)}</span><blockquote style="margin-top:16px">${esc(d.about)}</blockquote></div>${hours(d) || map(d, o)}</div></section>
-<section id="contact" class="contact" style="padding-top:0"><div class="wrap"><div class="box"><div><h2>${esc(ui.contact)}</h2>${contactList(d, d.primary)}<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:30px">${ctas(d)}</div></div>${d.hours.length ? map(d, o) : ""}</div></div></section>
+<section data-sec="about" id="about" class="about"><div class="wrap"><div><span class="k" style="color:${d.primary};font-weight:700;letter-spacing:.14em;font-size:14px;text-transform:uppercase">${esc(ui.about)}</span><blockquote style="margin-top:16px">${esc(d.about)}</blockquote></div>${hours(d) || map(d, o)}</div></section>
+<section data-sec="contact" id="contact" class="contact" style="padding-top:0"><div class="wrap"><div class="box"><div><h2>${esc(ui.contact)}</h2>${contactList(d, d.primary)}<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:30px">${ctas(d)}</div></div>${d.hours.length ? map(d, o) : ""}</div></div></section>
 <footer>© ${new Date().getFullYear()} ${esc(d.name)} · ${esc(ui.rights)}</footer>
 ${sticky(d, o)}`;
   return doc(d, "family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,600&family=DM+Sans:wght@400;500;700", css, body);
 }
 
 export function renderSite(d: SiteData, o: RenderOptions = {}) {
-  if (d.template === "bold") return bold(d, o);
-  if (d.template === "soft") return soft(d, o);
-  return classic(d, o);
+  const html = d.template === "bold" ? bold(d, o) : d.template === "soft" ? soft(d, o) : classic(d, o);
+  return applyBlocks(html, d);
 }
