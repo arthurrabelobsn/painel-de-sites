@@ -1,13 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { COUNTRIES, LANG_NAMES, countryByCode } from "@/lib/data/locales";
 import { NICHES } from "@/lib/data/niches";
 import { PageHeader } from "@/components/PageHeader";
 import { Notice } from "@/components/Notice";
-import type { PlaceResult } from "@/app/api/places/route";
+import type { PlaceResult, SearchQuota } from "@/app/api/places/route";
 
 export default function FindClientsPage() {
   const router = useRouter();
@@ -20,6 +20,16 @@ export default function FindClientsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [quota, setQuota] = useState<SearchQuota | null>(null);
+
+  useEffect(() => {
+    fetch("/api/places")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((q) => q && setQuota(q));
+  }, []);
+
+  const remaining = quota ? Math.max(0, quota.limit - quota.used) : null;
+  const blocked = !!quota && !quota.unlimited && remaining === 0;
 
   const c = countryByCode(country);
 
@@ -34,6 +44,7 @@ export default function FindClientsPage() {
         body: JSON.stringify({ niche, country, city, pageToken: more ? nextToken : null }),
       });
       const data = await res.json();
+      if (data.quota) setQuota(data.quota);
       if (!res.ok) throw new Error(data.error);
       setResults((prev) => {
         const base = more ? prev : [];
@@ -127,10 +138,29 @@ export default function FindClientsPage() {
             <input id="city" list="cities" className="input" placeholder={`ex.: ${c.cities[0]}`} value={city} onChange={(e) => setCity(e.target.value)} />
             <datalist id="cities">{c.cities.map((x) => <option key={x} value={x} />)}</datalist>
           </div>
-          <button className="btn-accent h-[46px] px-6" disabled={loading}>
-            {loading && !results.length ? "Buscando…" : "Buscar negócios"}
+          <button className="btn-accent h-[46px] px-6" disabled={loading || blocked}>
+            {loading && !results.length ? "Buscando…" : blocked ? "Limite de hoje atingido" : "Buscar negócios"}
           </button>
         </form>
+        {quota && (
+          <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl bg-bg px-3.5 py-2.5 text-[13px]">
+            {quota.unlimited ? (
+              <span><b>Buscas ilimitadas</b> nesta conta.</span>
+            ) : (
+              <>
+                <span className="flex gap-1">
+                  {Array.from({ length: quota.limit }).map((_, i) => (
+                    <span key={i} className={`h-2 w-6 rounded-full ${i < quota.used ? "bg-line" : "bg-accent"}`} />
+                  ))}
+                </span>
+                <span>
+                  <b>{remaining} de {quota.limit}</b> buscas restantes hoje
+                  <span className="text-muted"> · renova à meia-noite (Brasília). “Carregar mais” não conta.</span>
+                </span>
+              </>
+            )}
+          </div>
+        )}
         <p className="mt-3 text-[13px] text-muted">
           Idioma das mensagens e do site: <b>{LANG_NAMES[c.lang]}</b>. Dica: cidades médias costumam ter mais negócios sem site que capitais.
         </p>

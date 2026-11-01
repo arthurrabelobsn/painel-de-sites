@@ -32,6 +32,12 @@ Encontre negócios na Europa que têm telefone mas não têm site, gere uma demo
 ### 3. Gemini (grátis)
 Cada usuário cola a própria chave em **Configurações** (criada em [aistudio.google.com/apikey](https://aistudio.google.com/apikey)). Assim o seu custo é zero. Opcionalmente, defina `GEMINI_API_KEY` como chave padrão.
 
+### Limite de buscas
+Cada usuário pode fazer **3 buscas novas por dia** (renova à meia-noite de Brasília; "Carregar mais" não conta). O controle fica no banco, então não dá para burlar pelo navegador.
+- Mudar o limite: variável `DAILY_SEARCH_LIMIT`.
+- Liberar sem limite para alguns e-mails (ex.: o seu): `SEARCH_LIMIT_EXEMPT_EMAILS=voce@email.com`.
+- Se você já tinha rodado o `schema.sql` antes desta versão, rode também `supabase/migrations/002_limite_buscas.sql`.
+
 ### 4. Rodar
 ```bash
 cp .env.example .env.local   # preencha as chaves

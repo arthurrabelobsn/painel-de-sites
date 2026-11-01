@@ -47,6 +47,32 @@ const FIELD_MASK = [
 
 const MAX_PAGES_PER_CLICK = 3; // até 60 negócios analisados por clique
 
+/** Buscas novas por usuário por dia ("Carregar mais" não conta) */
+const DAILY_LIMIT = Number(process.env.DAILY_SEARCH_LIMIT ?? 3);
+
+/** E-mails sem limite (ex.: o seu), separados por vírgula */
+function isExempt(email?: string | null) {
+  const list = (process.env.SEARCH_LIMIT_EXEMPT_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return !!email && list.includes(email.toLowerCase());
+}
+
+export type SearchQuota = { used: number; limit: number; unlimited: boolean };
+
+/** Quantas buscas o usuário já fez hoje */
+export async function GET() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
+  const { data } = await supabase.rpc("searches_today");
+  const quota: SearchQuota = { used: (data as number) ?? 0, limit: DAILY_LIMIT, unlimited: isExempt(user.email) };
+  return NextResponse.json(quota);
+}
+
 export async function POST(req: Request) {
   const supabase = await createClient();
   const {
@@ -63,6 +89,27 @@ export async function POST(req: Request) {
 
   const { niche: nicheId, country: countryCode, city, pageToken } = await req.json();
   if (!city?.trim()) return NextResponse.json({ error: "Informe a cidade." }, { status: 400 });
+
+  // Limite diário: só buscas novas consomem (continuação via pageToken não)
+  const unlimited = isExempt(user.email);
+  let used: number | null = null;
+  if (!pageToken && !unlimited) {
+    const { data, error } = await supabase.rpc("consume_search", { p_limit: DAILY_LIMIT });
+    if (error)
+      return NextResponse.json(
+        { error: "Não foi possível verificar o limite de buscas. Rode o arquivo supabase/migrations/002_limite_buscas.sql no Supabase." },
+        { status: 500 }
+      );
+    if (data === null)
+      return NextResponse.json(
+        {
+          error: `Você já usou suas ${DAILY_LIMIT} buscas de hoje. O limite renova à meia-noite (horário de Brasília).`,
+          quota: { used: DAILY_LIMIT, limit: DAILY_LIMIT, unlimited } satisfies SearchQuota,
+        },
+        { status: 429 }
+      );
+    used = data as number;
+  }
 
   const country = countryByCode(countryCode);
   const niche = nicheById(nicheId);
@@ -132,5 +179,6 @@ export async function POST(req: Request) {
     results.forEach((r) => (r.saved = set.has(r.place_id)));
   }
 
-  return NextResponse.json({ results, nextPageToken: token ?? null, scanned, query: textQuery });
+  const quota: SearchQuota | null = used === null ? null : { used, limit: DAILY_LIMIT, unlimited };
+  return NextResponse.json({ results, nextPageToken: token ?? null, scanned, query: textQuery, quota });
 }
