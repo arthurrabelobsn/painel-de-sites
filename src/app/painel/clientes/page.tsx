@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { COUNTRIES, LANG_NAMES, countryByCode } from "@/lib/data/locales";
-import { NICHES } from "@/lib/data/niches";
+import { NICHES, NICHE_GROUPS } from "@/lib/data/niches";
 import { PageHeader } from "@/components/PageHeader";
 import { Notice } from "@/components/Notice";
 import type { PlaceResult, SearchQuota } from "@/app/api/places/route";
@@ -109,18 +109,25 @@ export default function FindClientsPage() {
 
       <div className="card mb-6 p-5">
         <label className="label">Nicho</label>
-        <div className="mb-5 flex flex-wrap gap-2">
-          {NICHES.map((n) => (
-            <button
-              key={n.id}
-              type="button"
-              onClick={() => setNiche(n.id)}
-              className={`rounded-full border px-3.5 py-1.5 text-[14px] font-medium transition ${
-                niche === n.id ? "border-ink bg-ink text-white" : "border-line bg-surface hover:border-ink"
-              }`}
-            >
-              {n.emoji} {n.label}
-            </button>
+        <div className="mb-5 space-y-2.5">
+          {NICHE_GROUPS.map((g) => (
+            <div key={g.id} className="flex flex-col gap-1.5 md:flex-row md:items-start md:gap-3">
+              <span className="shrink-0 pt-1.5 text-[12px] font-medium uppercase tracking-wide text-muted md:w-44">{g.label}</span>
+              <div className="flex flex-wrap gap-1.5">
+                {NICHES.filter((n) => n.group === g.id).map((n) => (
+                  <button
+                    key={n.id}
+                    type="button"
+                    onClick={() => setNiche(n.id)}
+                    className={`rounded-full border px-3 py-1.5 text-[13px] font-medium transition ${
+                      niche === n.id ? "border-ink bg-ink text-white" : "border-line bg-surface hover:border-ink"
+                    }`}
+                  >
+                    {n.emoji} {n.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
 

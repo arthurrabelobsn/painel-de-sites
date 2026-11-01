@@ -1,4 +1,5 @@
 import type { Lang } from "./locales";
+import { EXTRA_NICHES } from "./niches-extra";
 
 export type NicheCopy = {
   headline: string;
@@ -7,10 +8,21 @@ export type NicheCopy = {
   services: [string, string][];
 };
 
+export type NicheGroup = "casa" | "beleza" | "comida" | "saude" | "outros";
+
+export const NICHE_GROUPS: { id: NicheGroup; label: string }[] = [
+  { id: "casa", label: "Casa e reparos" },
+  { id: "beleza", label: "Beleza" },
+  { id: "comida", label: "Comida e bebida" },
+  { id: "saude", label: "Saúde, bem-estar e pets" },
+  { id: "outros", label: "Veículos e outros" },
+];
+
 export type Niche = {
   id: string;
   label: string; // nome no painel (pt-BR)
   emoji: string;
+  group: NicheGroup;
   /** termo usado na busca do Google, no idioma do país */
   search: Record<Lang, string>;
   /** cor principal sugerida, cor escura, cor clara */
@@ -19,11 +31,12 @@ export type Niche = {
 };
 
 // Marcadores: {name} = nome do negócio, {city} = cidade
-export const NICHES: Niche[] = [
+const BASE_NICHES: Niche[] = [
   {
     id: "plumber",
     label: "Encanador",
     emoji: "🔧",
+    group: "casa",
     search: { en: "plumber", de: "Klempner", fr: "plombier", es: "fontanero", it: "idraulico", pt: "canalizador", nl: "loodgieter" },
     palette: ["#1d6fe0", "#0b1f3a", "#e8f1ff"],
     copy: {
@@ -40,6 +53,7 @@ export const NICHES: Niche[] = [
     id: "electrician",
     label: "Eletricista",
     emoji: "⚡",
+    group: "casa",
     search: { en: "electrician", de: "Elektriker", fr: "électricien", es: "electricista", it: "elettricista", pt: "eletricista", nl: "elektricien" },
     palette: ["#f2a900", "#1c1a14", "#fff6dc"],
     copy: {
@@ -56,6 +70,7 @@ export const NICHES: Niche[] = [
     id: "barber",
     label: "Barbearia",
     emoji: "💈",
+    group: "beleza",
     search: { en: "barber shop", de: "Barbershop", fr: "barbier", es: "barbería", it: "barbiere", pt: "barbearia", nl: "kapper heren" },
     palette: ["#b8892d", "#141210", "#f5efe4"],
     copy: {
@@ -72,6 +87,7 @@ export const NICHES: Niche[] = [
     id: "hair-salon",
     label: "Salão de beleza",
     emoji: "✂️",
+    group: "beleza",
     search: { en: "hair salon", de: "Friseursalon", fr: "salon de coiffure", es: "peluquería", it: "parrucchiere", pt: "cabeleireiro", nl: "kapsalon" },
     palette: ["#c2577a", "#2a1520", "#fbeef2"],
     copy: {
@@ -88,6 +104,7 @@ export const NICHES: Niche[] = [
     id: "restaurant",
     label: "Restaurante",
     emoji: "🍽️",
+    group: "comida",
     search: { en: "restaurant", de: "Restaurant", fr: "restaurant", es: "restaurante", it: "ristorante", pt: "restaurante", nl: "restaurant" },
     palette: ["#c8452c", "#1e1410", "#fbf1e8"],
     copy: {
@@ -104,6 +121,7 @@ export const NICHES: Niche[] = [
     id: "cleaning",
     label: "Limpeza",
     emoji: "🧽",
+    group: "casa",
     search: { en: "cleaning service", de: "Reinigungsfirma", fr: "entreprise de nettoyage", es: "empresa de limpieza", it: "impresa di pulizie", pt: "empresa de limpeza", nl: "schoonmaakbedrijf" },
     palette: ["#14a37f", "#0c2420", "#e4f6f0"],
     copy: {
@@ -120,6 +138,7 @@ export const NICHES: Niche[] = [
     id: "auto-repair",
     label: "Oficina mecânica",
     emoji: "🚗",
+    group: "outros",
     search: { en: "car repair garage", de: "Autowerkstatt", fr: "garage automobile", es: "taller mecánico", it: "officina meccanica", pt: "oficina automóvel", nl: "autogarage" },
     palette: ["#e0482b", "#141820", "#f2f4f7"],
     copy: {
@@ -136,6 +155,7 @@ export const NICHES: Niche[] = [
     id: "gardener",
     label: "Jardinagem",
     emoji: "🌿",
+    group: "casa",
     search: { en: "gardener landscaping", de: "Gärtner Gartenpflege", fr: "jardinier paysagiste", es: "jardinero", it: "giardiniere", pt: "jardineiro", nl: "hovenier" },
     palette: ["#3f8f3a", "#12200f", "#eef6e8"],
     copy: {
@@ -149,5 +169,7 @@ export const NICHES: Niche[] = [
     },
   },
 ];
+
+export const NICHES: Niche[] = [...BASE_NICHES, ...EXTRA_NICHES];
 
 export const nicheById = (id: string) => NICHES.find((n) => n.id === id) ?? NICHES[0];

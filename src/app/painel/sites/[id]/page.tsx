@@ -7,6 +7,16 @@ import { Editor } from "./Editor";
 
 const TEMPLATE_BY_NICHE: Record<string, TemplateId> = {
   barber: "bold",
+  locksmith: "bold",
+  roofer: "bold",
+  movers: "bold",
+  hvac: "classic",
+  beauty: "soft",
+  bakery: "soft",
+  cafe: "soft",
+  florist: "soft",
+  "pet-grooming": "soft",
+  carpenter: "soft",
   "auto-repair": "bold",
   electrician: "bold",
   "hair-salon": "soft",
