@@ -156,6 +156,23 @@ export const EXTRA_NICHES: Niche[] = [
     },
   },
   {
+    id: "clinic",
+    label: "Clínica",
+    emoji: "🏥",
+    group: "saude",
+    search: { en: "medical clinic", de: "Arztpraxis", fr: "cabinet médical", es: "clínica médica", it: "poliambulatorio", pt: "clínica médica", nl: "medisch centrum" },
+    palette: ["#2b7bbf", "#0c1b2b", "#e8f2fb"],
+    copy: {
+      en: { headline: "Caring medical clinic in {city}", sub: "Appointments with a team that listens and explains clearly.", about: "{name} welcomes patients in {city} in a calm, friendly setting. Book a visit easily and get care focused on you.", services: [["Consultations", "General appointments for all ages."], ["Check-ups", "Routine health checks."], ["Specialties", "Ask about the specialties available."], ["Easy booking", "Call or message to book a visit."]] },
+      de: { headline: "Ihre Arztpraxis in {city}", sub: "Termine bei einem Team, das zuhört und verständlich erklärt.", about: "{name} empfängt Patientinnen und Patienten in {city} in ruhiger, freundlicher Atmosphäre. Einfach Termin vereinbaren und gut betreut werden.", services: [["Sprechstunde", "Allgemeine Termine für alle Altersgruppen."], ["Vorsorge", "Regelmäßige Gesundheits-Checks."], ["Fachbereiche", "Fragen Sie nach unseren Fachbereichen."], ["Einfache Terminvergabe", "Anrufen oder Nachricht schreiben."]] },
+      fr: { headline: "Votre cabinet médical à {city}", sub: "Des consultations avec une équipe à l'écoute et des explications claires.", about: "{name} accueille les patients de {city} dans un cadre calme et bienveillant. Prenez rendez-vous facilement et bénéficiez d'un suivi attentif.", services: [["Consultations", "Pour tous les âges."], ["Bilans de santé", "Suivi et prévention."], ["Spécialités", "Renseignez-vous sur nos spécialités."], ["Rendez-vous facile", "Par téléphone ou message."]] },
+      es: { headline: "Tu clínica de confianza en {city}", sub: "Consultas con un equipo que escucha y explica con claridad.", about: "{name} atiende a pacientes de {city} en un ambiente tranquilo y cercano. Pide cita fácilmente y recibe una atención centrada en ti.", services: [["Consultas", "Medicina general para todas las edades."], ["Revisiones", "Chequeos de salud periódicos."], ["Especialidades", "Consulta las especialidades disponibles."], ["Cita fácil", "Llama o escríbenos para reservar."]] },
+      it: { headline: "Il tuo poliambulatorio a {city}", sub: "Visite con un team che ascolta e spiega con chiarezza.", about: "{name} accoglie i pazienti di {city} in un ambiente sereno e cordiale. Prenota facilmente e ricevi un'assistenza attenta.", services: [["Visite", "Medicina generale per tutte le età."], ["Check-up", "Controlli periodici."], ["Specialità", "Chiedi le specialità disponibili."], ["Prenotazione facile", "Chiama o scrivici."]] },
+      pt: { headline: "A sua clínica de confiança em {city}", sub: "Consultas com uma equipa que ouve e explica com clareza.", about: "A {name} recebe utentes em {city} num ambiente calmo e próximo. Marque a sua consulta com facilidade e tenha um acompanhamento atento.", services: [["Consultas", "Medicina geral para todas as idades."], ["Check-ups", "Avaliações de saúde regulares."], ["Especialidades", "Pergunte pelas especialidades disponíveis."], ["Marcação fácil", "Ligue ou envie mensagem."]] },
+      nl: { headline: "Uw medisch centrum in {city}", sub: "Afspraken bij een team dat luistert en duidelijk uitlegt.", about: "{name} ontvangt patiënten in {city} in een rustige, vriendelijke omgeving. Maak eenvoudig een afspraak en krijg zorg die bij u past.", services: [["Consulten", "Algemene zorg voor alle leeftijden."], ["Check-ups", "Periodieke gezondheidscontroles."], ["Specialismen", "Vraag naar de beschikbare specialismen."], ["Makkelijk afspreken", "Bel of stuur een bericht."]] },
+    },
+  },
+  {
     id: "bakery",
     label: "Padaria e confeitaria",
     emoji: "🥐",

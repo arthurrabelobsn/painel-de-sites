@@ -23,6 +23,14 @@ const initials = (name: string) =>
     .map((w) => w[0]!.toUpperCase())
     .join("") || "•";
 
+/** Favicon do site do cliente: a logo, se houver; senão, as iniciais na cor do negócio */
+function favicon(d: SiteData) {
+  if (d.logo) return d.logo;
+  const ini = esc(initials(d.name).slice(0, 2));
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${d.primary}"/><text x="32" y="42" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="${ini.length > 1 ? 26 : 32}" fill="#fff">${ini}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
 function logo(d: SiteData, onDark = false) {
   if (d.logo) return `<img class="logo-img" src="${d.logo}" alt="${esc(d.name)}"/>`;
   return `<span class="mono" style="background:${d.primary}">${esc(initials(d.name))}</span><span class="brand-name" style="color:${onDark ? "#fff" : d.dark}">${esc(d.name)}</span>`;
@@ -123,6 +131,7 @@ function doc(d: SiteData, fonts: string, css: string, body: string) {
   return `<!doctype html><html lang="${d.lang}"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${esc(d.name)} — ${esc(d.city)}</title>
+<link rel="icon" href="${favicon(d)}"/>
 <meta name="description" content="${esc(d.sub)}"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?${fonts}&display=swap" rel="stylesheet"/>
