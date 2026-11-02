@@ -57,8 +57,13 @@ export default function LoginPage() {
         {loading ? "Entrando…" : "Entrar"}
       </button>
       <p className="text-center text-[14px] text-muted">
-        Não tem conta?{" "}
-        <Link href="/cadastro" className="font-medium text-ink hover:underline">Criar conta</Link>
+        O acesso é liberado após a compra: entre com o e-mail usado no pagamento.
+        {process.env.NEXT_PUBLIC_SALES_URL && (
+          <>
+            {" "}
+            <a href={process.env.NEXT_PUBLIC_SALES_URL} className="font-medium text-ink hover:underline">Ainda não tem acesso?</a>
+          </>
+        )}
       </p>
     </form>
   );

@@ -82,3 +82,13 @@ A rota `POST /api/hubla` recebe o webhook da Hubla e cria o usuário no Supabase
    Copie o token mostrado lá para `HUBLA_TOKEN`.
 3. Teste pelo ambiente de testes da Hubla e confira em Vercel → Logs as linhas `[hubla]`.
 4. Supabase → Authentication → Sign In / Providers: desligue "Allow new users to sign up" para que só quem comprou entre.
+
+## E-mails
+
+- **Boas-vindas** (enviado pelo painel quando a Hubla libera o acesso): configure `RESEND_API_KEY` e `EMAIL_FROM`.
+  O texto fica em `src/lib/email.ts`.
+- **Esqueci a senha, troca de e-mail, link mágico** (enviados pelo Supabase): cole os arquivos de
+  `supabase/email-templates/` em Supabase → Authentication → Emails → Templates. Para chegarem a qualquer pessoa,
+  configure SMTP próprio (Authentication → Emails → SMTP Settings), por exemplo o do Resend:
+  host `smtp.resend.com`, porta `465`, usuário `resend`, senha = a API key do Resend.
+- O cadastro público foi removido; desligue também "Allow new users to sign up" no Supabase.

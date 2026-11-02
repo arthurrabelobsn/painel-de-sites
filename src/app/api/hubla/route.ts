@@ -7,10 +7,12 @@
  *   SUPABASE_SERVICE_ROLE_KEY   chave "service_role" do Supabase (Project Settings → API)
  *   DEFAULT_USER_PASSWORD       senha padrão dos novos acessos
  *   HUBLA_PRODUCT_IDS           opcional: ids de produto aceitos, separados por vírgula
+ *   RESEND_API_KEY, EMAIL_FROM  opcional: envia o e-mail de boas-vindas com os dados de acesso (ver src/lib/email.ts)
  */
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { timingSafeEqual } from "node:crypto";
+import { sendEmail, welcomeEmail } from "@/lib/email";
 
 type Json = Record<string, unknown>;
 
@@ -142,6 +144,16 @@ export async function POST(req: Request) {
   }
 
   console.log(`[hubla] acesso criado: ${buyer.email} (${type})`);
+
+  // e-mail de boas-vindas com os dados de acesso (só se o Resend estiver configurado)
+  try {
+    const appUrl = process.env.APP_URL || new URL(req.url).origin;
+    const appName = process.env.APP_NAME || "Painel de Sites";
+    const r = await sendEmail(buyer.email, welcomeEmail({ name: buyer.name, email: buyer.email, password, appUrl, appName }));
+    console.log(`[hubla] boas-vindas ${"sent" in r ? "enviado" : "não enviado (RESEND_API_KEY/EMAIL_FROM ausentes)"}: ${buyer.email}`);
+  } catch (e) {
+    console.error(`[hubla] falha no e-mail de boas-vindas para ${buyer.email}: ${(e as Error).message}`);
+  }
   return NextResponse.json({ ok: true, created: true });
 }
 
