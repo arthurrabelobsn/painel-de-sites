@@ -169,7 +169,7 @@ USER REQUEST (Portuguese):
 Return ONLY a JSON object with these optional keys:
 {
   "summary": "1-2 short sentences IN PORTUGUESE (Brazil) telling the user what you changed",
-  "set": { any of: "template" ("classic" light | "bold" dark, big type | "soft" warm, serif), "name", "headline", "sub", "about",
+  "set": { any of: "template" ("classic" clean and light | "bold" dark, huge type | "soft" warm, serif | "storefront" shop-sign name with striped awning | "service" contact ticket card, checklist; best for repairs and clinics), "name", "headline", "sub", "about",
            "services": [{"title","desc"}] (1-8), "benefits": [{"title","desc"}] (exactly 3),
            "phone", "email", "address", "city", "hours": ["Monday: 9:00–18:00", ...],
            "primary","dark","light" (hex like #1d6fe0; "light" must be a very light tint, "dark" a very dark shade),

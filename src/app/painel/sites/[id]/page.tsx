@@ -6,22 +6,29 @@ import type { SiteData, TemplateId } from "@/lib/templates/types";
 import { Editor } from "./Editor";
 
 const TEMPLATE_BY_NICHE: Record<string, TemplateId> = {
+  // Atendimento: chamados, reparos e saúde (telefone em destaque)
+  plumber: "service",
+  electrician: "service",
+  locksmith: "service",
+  hvac: "service",
+  roofer: "service",
+  clinic: "service",
+  physio: "service",
+  // Vitrine: comércio de bairro
+  bakery: "storefront",
+  cafe: "storefront",
+  florist: "storefront",
+  "pet-grooming": "storefront",
+  // Impacto
   barber: "bold",
-  locksmith: "bold",
-  roofer: "bold",
-  movers: "bold",
-  hvac: "classic",
-  beauty: "soft",
-  bakery: "soft",
-  cafe: "soft",
-  florist: "soft",
-  "pet-grooming": "soft",
-  carpenter: "soft",
   "auto-repair": "bold",
-  electrician: "bold",
+  movers: "bold",
+  // Acolhedor
+  beauty: "soft",
   "hair-salon": "soft",
   restaurant: "soft",
   gardener: "soft",
+  carpenter: "soft",
 };
 
 export default async function SitePage({

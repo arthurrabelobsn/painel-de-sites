@@ -1,11 +1,13 @@
 import type { Lang } from "../data/locales";
 
-export type TemplateId = "classic" | "bold" | "soft";
+export type TemplateId = "classic" | "bold" | "soft" | "storefront" | "service";
 
 export const TEMPLATES: { id: TemplateId; name: string; description: string }[] = [
   { id: "classic", name: "Clássico", description: "Claro e confiável. Funciona para qualquer nicho." },
   { id: "bold", name: "Impacto", description: "Escuro, tipografia grande. Ótimo para serviços e barbearias." },
   { id: "soft", name: "Acolhedor", description: "Tons suaves e serifas. Ideal para salões e restaurantes." },
+  { id: "storefront", name: "Vitrine", description: "O nome vira letreiro com toldo listrado. Para lojas de bairro, padarias, cafés e barbearias." },
+  { id: "service", name: "Atendimento", description: "Cartão de contato em destaque e serviços em lista. Para chamados, reparos e clínicas." },
 ];
 
 export type ServiceItem = { title: string; desc: string };

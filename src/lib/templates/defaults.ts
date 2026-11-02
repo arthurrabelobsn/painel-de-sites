@@ -1,6 +1,7 @@
 import { SITE_UI, type Lang } from "../data/locales";
 import { nicheById } from "../data/niches";
 import { fillTemplate } from "../data/outreach";
+import { BENEFITS } from "../data/benefits";
 import type { SiteData, TemplateId } from "./types";
 
 export type LeadLike = {
@@ -31,7 +32,7 @@ export function defaultSiteData(lead: LeadLike, lang: Lang, template: TemplateId
     sub: fillTemplate(copy.sub, vars),
     about: fillTemplate(copy.about, vars),
     services: copy.services.map(([title, desc]) => ({ title, desc })),
-    benefits: SITE_UI[lang].benefits.map(([title, desc]) => ({ title, desc })),
+    benefits: (niche.group === "casa" ? SITE_UI[lang].benefits : BENEFITS[niche.group][lang]).map(([title, desc]) => ({ title, desc })),
     phone: lead.phone ?? "",
     intlPhone: intl,
     whatsapp: intl.replace(/\D/g, ""),
