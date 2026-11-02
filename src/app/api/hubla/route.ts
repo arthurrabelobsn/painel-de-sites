@@ -50,6 +50,14 @@ function findBuyer(body: Json): { email: string; name: string } | null {
   return pick(ev);
 }
 
+/** Status da fatura no evento (ex.: event.invoice.status = "paid") */
+function findStatus(body: Json): string {
+  const ev = isObj(body.event) ? body.event : body;
+  const inv = isObj(ev.invoice) ? (ev.invoice as Json) : ev;
+  const v = inv.status ?? ev.status;
+  return typeof v === "string" ? v.trim() : "";
+}
+
 function productIds(body: Json): string[] {
   const out = new Set<string>();
   const stack: unknown[] = [body];
@@ -91,9 +99,14 @@ export async function POST(req: Request) {
   const type = String(body.type ?? body.event_type ?? (isObj(body.event) ? (body.event as Json).type ?? "" : ""));
   const eventId = req.headers.get("x-hubla-idempotency") ?? "";
 
+  // "Status da fatura atualizado": só libera quando a fatura estiver paga
+  const statusEvent = /status_updated|status_changed|statusupdated/i.test(type);
+  const status = statusEvent ? findStatus(body) : "";
+  const paidStatus = /^(paid|approved|succeeded|completed|pago|aprovado)$/i.test(status);
+
   // Só eventos de compra/acesso aprovados criam usuário; os demais são aceitos (200) e ignorados
-  if (!type || DENY.test(type) || !GRANT.test(type)) {
-    console.log(`[hubla] ignorado: ${type || "(sem tipo)"} ${eventId}`);
+  if (statusEvent ? !paidStatus : !type || DENY.test(type) || !GRANT.test(type)) {
+    console.log(`[hubla] ignorado: ${type || "(sem tipo)"}${status ? ` (status ${status})` : ""} ${eventId}`);
     return NextResponse.json({ ok: true, ignored: type || "unknown" });
   }
 
