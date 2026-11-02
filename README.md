@@ -70,3 +70,15 @@ supabase/schema.sql     tabelas + RLS
 - Os termos do Google limitam guardar dados do Places por muito tempo (o `place_id` pode ser guardado sem limite). Para uso em escala, considere atualizar ou apagar leads antigos periodicamente.
 - Abordagem fria na Europa segue o GDPR e regras locais (a Alemanha é especialmente restritiva com e-mail frio). As mensagens já se identificam e oferecem opção de não ser mais contatado.
 - O link de demonstração (`/demo/<id>`) é servido pelo próprio painel. Para o site final do cliente, use o botão **Publicar** (Cloudflare Pages: grátis, uso comercial permitido, domínio próprio).
+
+## Acesso automático para quem compra na Hubla
+
+A rota `POST /api/hubla` recebe o webhook da Hubla e cria o usuário no Supabase com a senha padrão
+(e-mail já confirmado). Compras repetidas não duplicam o acesso; reembolsos e cancelamentos são ignorados.
+
+1. Vercel → Settings → Environment Variables: `HUBLA_TOKEN`, `SUPABASE_SERVICE_ROLE_KEY`, `DEFAULT_USER_PASSWORD`
+   (e, se quiser filtrar, `HUBLA_PRODUCT_IDS`). Depois, Redeploy.
+2. Hubla → Integrações → Webhook: URL `https://SEU-DOMINIO/api/hubla`, eventos de venda/acesso aprovado.
+   Copie o token mostrado lá para `HUBLA_TOKEN`.
+3. Teste pelo ambiente de testes da Hubla e confira em Vercel → Logs as linhas `[hubla]`.
+4. Supabase → Authentication → Sign In / Providers: desligue "Allow new users to sign up" para que só quem comprou entre.
