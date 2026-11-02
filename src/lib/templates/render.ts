@@ -676,11 +676,13 @@ mask-image:linear-gradient(90deg,transparent 0%,#000 46%),linear-gradient(0deg,t
 @media(max-width:760px){
  body{font-size:17px;padding-bottom:84px}
  .fl span:nth-child(-n+6){display:none}
- .imm-scrim{background:var(--scrim-m)}
- .h-imm{min-height:0;align-items:flex-end;padding:44vh 0 56px}
+ /* no celular a foto fica entre o cabeçalho e o título, sem passar por trás de nenhum texto */
+ .imm-scrim{display:none}
+ .imm-bg{top:72px;bottom:auto;height:44vh;-webkit-mask-image:linear-gradient(180deg,#000 0%,#000 62%,transparent 100%);mask-image:linear-gradient(180deg,#000 0%,#000 62%,transparent 100%)}
+ .h-imm{min-height:0;align-items:flex-end;padding:calc(44vh + 8px) 0 56px}
  .imm-copy,.fade-copy{max-width:none}
- .h-fade{min-height:0;align-items:flex-end;padding:42vh 0 56px}
- .fade-bg{width:100%;bottom:auto;height:58vh;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 80px,#000 52%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 80px,#000 52%,transparent 100%);-webkit-mask-composite:source-over;mask-composite:add}
+ .h-fade{min-height:0;align-items:flex-end;padding:calc(44vh + 8px) 0 56px}
+ .fade-bg{top:72px;width:100%;bottom:auto;height:44vh;-webkit-mask-image:linear-gradient(180deg,#000 0%,#000 62%,transparent 100%);mask-image:linear-gradient(180deg,#000 0%,#000 62%,transparent 100%);-webkit-mask-composite:source-over;mask-composite:add}
  .cen-media{height:56vw;min-height:240px}
  .h1,.mon,.tel-mon,.ct-tel,.ft-name,.poster-h{font-size:var(--fsm)}
  .g>*,.rows li>*,.board li>*,.why-stack li>*,.why-band li>*,.why-columns li>*{grid-column:1/-1!important}
