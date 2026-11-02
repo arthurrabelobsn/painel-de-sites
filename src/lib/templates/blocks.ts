@@ -15,27 +15,29 @@ const digits = (s: string) => s.replace(/[^\d+]/g, "");
 
 /** CSS das seções extras. Usa variáveis definidas no estilo da própria seção. */
 export const BLOCKS_CSS = `
-.xb{padding:88px 0}
-.xb .xh{max-width:680px;margin-bottom:40px}
-.xb .xh h2{font-size:40px;margin-bottom:12px}
-.xb .xh p{font-size:18px;opacity:.78}
-.xb .xg{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
-.xb .xc{background:var(--card);border:1px solid var(--bd);border-radius:22px;padding:26px}
-.xb .xc h3{font-size:20px;margin-bottom:8px}
-.xb .xc p{opacity:.75;font-size:15px}
-.xb .xn{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:50%;background:var(--p);color:#fff;font-weight:800;margin-bottom:16px}
-.xb .xprice{font-size:32px;font-weight:800;color:var(--p);margin:6px 0 10px}
-.xb .xfaq{display:grid;gap:12px;max-width:860px}
-.xb .xfaq .xc h3{font-size:18px}
-.xb .xtext{max-width:780px;font-size:18px;line-height:1.7;opacity:.88}
-.xb .xtext p+p{margin-top:16px}
-.xcta{padding:72px 0}
-.xcta .box{background:var(--p);color:#fff;border-radius:28px;padding:48px;display:flex;flex-wrap:wrap;gap:28px;align-items:center;justify-content:space-between}
-.xcta h2{font-size:34px;color:#fff;margin-bottom:8px}.xcta p{opacity:.9;font-size:17px;max-width:620px}
-.xcta a{display:inline-flex;align-items:center;gap:10px;background:#fff;color:var(--d);padding:15px 24px;border-radius:999px;font-weight:700}
+.xb{padding:var(--sec,120px) 0}
+.xb .xh{margin-bottom:clamp(36px,4vw,64px)}
+.xb .xh h2{font-size:clamp(42px,5.4vw,104px);line-height:var(--dl,1);max-width:16ch}
+.xb .xh p{font-size:clamp(19px,1.45vw,22px);max-width:34em;margin-top:24px}
+.xb .xg{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:8px}
+.xb .xc{background:var(--surf);border-radius:var(--rc,0);padding:clamp(24px,2.4vw,36px)}
+.xb .xc h3{font-size:clamp(22px,2vw,30px);margin-bottom:10px}
+.xb ol.xg{counter-reset:st}
+.xb ol.xg .xc{counter-increment:st}
+.xb ol.xg .xc::before{content:counter(st);display:block;font:var(--dw,700) clamp(40px,4vw,64px)/1 var(--fd);color:var(--act-t);margin-bottom:20px}
+.xb .xprice{font:var(--dw,700) clamp(32px,3vw,48px)/1 var(--fd);color:var(--act-t);margin:8px 0 14px;font-variant-numeric:tabular-nums}
+.xb .xfaq{display:grid;gap:8px;max-width:960px}
+.xb .xtext{max-width:38em;font-size:19px;line-height:1.65}
+.xb .xtext p+p{margin-top:18px}
+.xcta{padding:clamp(72px,8vw,128px) 0;background:var(--act);color:var(--on-act)}
+.xcta .box{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-end;justify-content:space-between}
+.xcta h2{font-size:clamp(40px,5vw,96px);line-height:var(--dl,1);max-width:14ch}
+.xcta p{font-size:clamp(19px,1.45vw,22px);max-width:30em;margin-top:20px}
+.xcta a{display:inline-flex;align-items:center;gap:10px;min-height:56px;padding:0 28px;border-radius:var(--rb,999px);background:var(--on-act);color:var(--act);font-weight:600;transition:transform 160ms var(--ease-out)}
+.xcta a:active{transform:scale(.97)}
 .xcustom{max-width:100%;overflow-wrap:anywhere}
-.xcustom img{max-width:100%;height:auto;border-radius:16px}
-@media(max-width:760px){.xb{padding:60px 0}.xb .xh h2,.xcta h2{font-size:30px}.xcta .box{padding:30px}}
+.xcustom img{max-width:100%;height:auto}
+.xcustom p+p{margin-top:14px}
 `;
 
 function blockHtml(d: SiteData, b: Block): string {
@@ -60,9 +62,9 @@ function blockHtml(d: SiteData, b: Block): string {
         .map((it) => `<div class="xc"><h3>${esc(it.title)}</h3>${it.desc ? `<p>${esc(it.desc)}</p>` : ""}</div>`)
         .join("")}</div></div></section>`;
     case "steps":
-      return `<section class="xb" data-block="${esc(b.id)}"><div class="wrap">${head}<div class="xg">${items
-        .map((it, i) => `<div class="xc"><span class="xn">${i + 1}</span><h3>${esc(it.title)}</h3>${it.desc ? `<p>${esc(it.desc)}</p>` : ""}</div>`)
-        .join("")}</div></div></section>`;
+      return `<section class="xb" data-block="${esc(b.id)}"><div class="wrap">${head}<ol class="xg">${items
+        .map((it) => `<li class="xc"><h3>${esc(it.title)}</h3>${it.desc ? `<p>${esc(it.desc)}</p>` : ""}</li>`)
+        .join("")}</ol></div></section>`;
     case "pricing":
       return `<section class="xb" data-block="${esc(b.id)}"><div class="wrap">${head}<div class="xg">${items
         .map((it) => `<div class="xc"><h3>${esc(it.title)}</h3>${it.price ? `<div class="xprice">${esc(it.price)}</div>` : ""}${it.desc ? `<p>${esc(it.desc)}</p>` : ""}</div>`)
@@ -77,12 +79,9 @@ function blockHtml(d: SiteData, b: Block): string {
   }
 }
 
-/** Cores dos cartões conforme o modelo (o "Impacto" é escuro) */
-function themeVars(d: SiteData) {
-  const darkTheme = d.template === "bold";
-  const card = darkTheme ? "rgba(255,255,255,.06)" : d.template === "soft" ? "#fff" : d.light;
-  const bd = darkTheme ? "rgba(255,255,255,.12)" : "rgba(0,0,0,.07)";
-  return `--p:${d.primary};--d:${d.dark};--l:${d.light};--card:${card};--bd:${bd}`;
+/** As seções extras herdam as variáveis de cor do modelo (definidas no :root pelo renderizador) */
+function themeVars(_d: SiteData) {
+  return "";
 }
 
 /**
@@ -99,7 +98,7 @@ export function applyBlocks(html: string, d: SiteData): string {
     const render = (pos: BlockPosition) =>
       blocks
         .filter((b) => b.position === pos)
-        .map((b) => blockHtml(d, b).replace(/^<section /, `<section style="${vars}" `))
+        .map((b) => (vars ? blockHtml(d, b).replace(/^<section /, `<section style="${vars}" `) : blockHtml(d, b)))
         .join("");
 
     const sec = (name: string) => new RegExp(`<section\\b[^>]*data-sec="${name}"[^>]*>[\\s\\S]*?</section>`);

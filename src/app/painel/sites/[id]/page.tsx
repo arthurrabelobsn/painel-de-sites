@@ -2,34 +2,9 @@ import { notFound, redirect } from "next/navigation";
 import { createClient, getSessionUser } from "@/lib/supabase/server";
 import { countryByCode } from "@/lib/data/locales";
 import { defaultSiteData } from "@/lib/templates/defaults";
-import type { SiteData, TemplateId } from "@/lib/templates/types";
+import type { SiteData } from "@/lib/templates/types";
+import { presetForNiche } from "@/lib/templates/presets";
 import { Editor } from "./Editor";
-
-const TEMPLATE_BY_NICHE: Record<string, TemplateId> = {
-  // Atendimento: chamados, reparos e saúde (telefone em destaque)
-  plumber: "service",
-  electrician: "service",
-  locksmith: "service",
-  hvac: "service",
-  roofer: "service",
-  clinic: "service",
-  physio: "service",
-  // Vitrine: comércio de bairro
-  bakery: "storefront",
-  cafe: "storefront",
-  florist: "storefront",
-  "pet-grooming": "storefront",
-  // Impacto
-  barber: "bold",
-  "auto-repair": "bold",
-  movers: "bold",
-  // Acolhedor
-  beauty: "soft",
-  "hair-salon": "soft",
-  restaurant: "soft",
-  gardener: "soft",
-  carpenter: "soft",
-};
 
 export default async function SitePage({
   params,
@@ -50,7 +25,7 @@ export default async function SitePage({
     const { data: lead } = await supabase.from("leads").select("*").eq("id", leadId).single();
     if (!lead) notFound();
     const lang = countryByCode(lead.country).lang;
-    const initial = defaultSiteData(lead, lang, TEMPLATE_BY_NICHE[lead.niche] ?? "classic");
+    const initial = defaultSiteData(lead, lang, presetForNiche(lead.niche));
     return <Editor initial={initial} siteId={null} leadId={lead.id} leadName={lead.name} hasAI={hasAI} />;
   }
 

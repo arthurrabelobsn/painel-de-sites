@@ -53,6 +53,7 @@ export function Editor({
   const supabase = useMemo(() => createClient(), []);
   const [d, setD] = useState<SiteData>(initial);
   const [tab, setTab] = useState<Tab>("modelo");
+  const [showOthers, setShowOthers] = useState(false);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [dirty, setDirty] = useState(!siteId);
   const [busy, setBusy] = useState<string | null>(null);
@@ -267,15 +268,36 @@ export function Editor({
                 <p className="text-[14px] text-muted">
                   {niche.emoji} {niche.label} · textos em <b className="text-ink">{LANG_NAMES[d.lang]}</b>. Todos os modelos usam os mesmos dados — troque à vontade.
                 </p>
-                {TEMPLATES.map((t) => (
-                  <button key={t.id} onClick={() => set("template", t.id as TemplateId)} className={`block w-full overflow-hidden rounded-2xl border-2 text-left transition ${d.template === t.id ? "border-ink" : "border-line hover:border-ink/40"}`}>
-                    <Thumb data={deb} template={t.id} />
-                    <div className="border-t border-line bg-surface p-3">
-                      <p className="font-semibold">{t.name} {d.template === t.id && <span className="text-accent">✓</span>}</p>
-                      <p className="text-[13px] text-muted">{t.description}</p>
-                    </div>
-                  </button>
-                ))}
+                {(() => {
+                  const own = TEMPLATES.filter((t) => t.niche === d.nicheId);
+                  const general = TEMPLATES.filter((t) => !t.niche);
+                  const others = TEMPLATES.filter((t) => t.niche && t.niche !== d.nicheId);
+                  const card = (t: (typeof TEMPLATES)[number]) => (
+                    <button key={t.id} onClick={() => set("template", t.id as TemplateId)} className={`block w-full overflow-hidden rounded-2xl border-2 text-left transition ${d.template === t.id ? "border-ink" : "border-line hover:border-ink/40"}`}>
+                      <Thumb data={deb} template={t.id} />
+                      <div className="border-t border-line bg-surface p-3">
+                        <p className="font-semibold">{t.name} {d.template === t.id && <span className="text-accent">✓</span>}</p>
+                        <p className="text-[13px] text-muted">{t.description}</p>
+                      </div>
+                    </button>
+                  );
+                  return (
+                    <>
+                      {own.length > 0 && (
+                        <>
+                          <h3 className="pt-1 text-[15px] font-semibold">Feito para {niche.label.toLowerCase()}</h3>
+                          {own.map(card)}
+                        </>
+                      )}
+                      <h3 className="pt-3 text-[15px] font-semibold">Modelos gerais</h3>
+                      {general.map(card)}
+                      <button onClick={() => setShowOthers((v) => !v)} className="btn-ghost w-full justify-center">
+                        {showOthers ? "Esconder modelos de outros nichos" : `Ver modelos de outros nichos (${others.length})`}
+                      </button>
+                      {showOthers && others.map((t) => card({ ...t, description: `${nicheById(t.niche!).emoji} ${nicheById(t.niche!).label} · ${t.description}` }))}
+                    </>
+                  );
+                })()}
               </>
             )}
 

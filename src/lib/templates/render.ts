@@ -1,6 +1,17 @@
+/**
+ * Renderizador dos modelos. Um modelo (presets.ts) escolhe tipografia, forma, cores e a composição de cada seção;
+ * aqui cada composição vira HTML estático, sem JavaScript (as demos rodam com scripts bloqueados).
+ *
+ * Regras seguidas (tasteskill + Emil Kowalski): título em até 2 linhas, um h1 por página, título em toda seção,
+ * margens externas iguais, sem rótulos pequenos acima de títulos, sem numeração decorativa, sem linhas finas,
+ * sem gradientes, sem sombras em repouso, sem cartões com ícone no topo, no máximo duas famílias tipográficas,
+ * uma cor de ação; movimento só em transform/opacity, com versão para quem reduz movimento.
+ */
 import { SITE_UI } from "../data/locales";
-import { heroArt, icon } from "./icons";
+import { icon } from "./icons";
 import { applyBlocks } from "./blocks";
+import { FONTS, MOTIFS, presetById, type FontSystem, type Preset } from "./presets";
+import { fieldCss, fieldVars, mix, onColor, contrast, type FieldKind, type Palette } from "./theme";
 import type { RenderOptions, SiteData } from "./types";
 
 export const esc = (s: string | number | null | undefined) =>
@@ -27,432 +38,558 @@ const initials = (name: string) =>
 function favicon(d: SiteData) {
   if (d.logo) return d.logo;
   const ini = esc(initials(d.name).slice(0, 2));
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${d.primary}"/><text x="32" y="42" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="${ini.length > 1 ? 26 : 32}" fill="#fff">${ini}</text></svg>`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="${d.primary}"/><text x="32" y="42" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-weight="700" font-size="${ini.length > 1 ? 26 : 32}" fill="${onColor(d.primary, d.dark)}">${ini}</text></svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
 
-function logo(d: SiteData, onDark = false) {
-  if (d.logo) return `<img class="logo-img" src="${d.logo}" alt="${esc(d.name)}"/>`;
-  return `<span class="mono" style="background:${d.primary}">${esc(initials(d.name))}</span><span class="brand-name" style="color:${onDark ? "#fff" : d.dark}">${esc(d.name)}</span>`;
+/* ---------------- Tamanho de título que cabe em N linhas ---------------- */
+function fit(text: string, widthVw: number, f: FontSystem, lines: number, minPx: number, maxPx: number) {
+  const len = Math.max(6, [...text].length);
+  // 0.86: margem de segurança para palavras longas que não quebram onde a conta prevê
+  const vw = (0.86 * widthVw * lines) / ((f.cw + Math.abs(f.track)) * len * (f.upper ? 1.22 : 1));
+  return `clamp(${minPx}px,${vw.toFixed(2)}vw,${maxPx}px)`;
 }
 
-function hero(d: SiteData, radius: string, fit: "slice" | "meet" = "slice") {
-  const inner = d.heroImage
-    ? `<img src="${d.heroImage}" alt="${esc(d.name)}" style="width:100%;height:100%;object-fit:cover;display:block"/>`
-    : heroArt(d.nicheId, d.primary, d.dark, d.light).replace("xMidYMid slice", `xMidYMid ${fit}`);
-  return `<div class="hero-art rise" style="--i:4;border-radius:${radius};background:${d.light}">${inner}</div>`;
+/** Variáveis de tamanho para desktop e celular */
+function fs(text: string, f: FontSystem, desk: number, lines: number, min: number, max: number, mobMin = min, mobMax = max, mobLines = lines) {
+  return `--fs:${fit(text, desk, f, lines, min, max)};--fsm:${fit(text, 90, f, mobLines, mobMin, mobMax)}`;
 }
 
-function map(d: SiteData, o: RenderOptions) {
+/* ---------------- Paleta do modelo ---------------- */
+function palette(d: SiteData, p: Preset): Palette {
+  const inkFrom = (bg: string) => (contrast(d.dark, bg) >= 7 ? d.dark : mix(d.dark, "#000000", 0.6));
+  if (p.mode === "dark") {
+    const ground = contrast(d.dark, "#ffffff") >= 10 ? d.dark : mix(d.dark, "#000000", 0.55);
+    const ink = mix(d.light, "#ffffff", 0.6);
+    return { ground, ink, accent: d.primary, onAccent: onColor(d.primary, ground), light: d.light, dark: mix(ground, "#000000", 0.4) };
+  }
+  const ground = p.mode === "paper" ? mix(d.light, "#ffffff", 0.4) : mix("#ffffff", d.light, 0.22);
+  return { ground, ink: inkFrom(ground), accent: d.primary, onAccent: onColor(d.primary, d.dark), light: d.light, dark: d.dark };
+}
+
+type Ctx = { d: SiteData; p: Preset; f: FontSystem; pal: Palette; ui: (typeof SITE_UI)["en"]; o: RenderOptions };
+
+const field = (c: Ctx, sec: keyof NonNullable<Preset["fields"]>, fallback: FieldKind = "ground") =>
+  c.p.fields?.[sec] ?? fallback;
+
+/* ---------------- Peças pequenas ---------------- */
+function wordmark(c: Ctx) {
+  const { d } = c;
+  if (d.logo) return `<img class="wm-img" src="${d.logo}" alt="${esc(d.name)}"/>`;
+  return `<span class="wm-name">${esc(d.name)}</span>`;
+}
+
+function ctas(c: Ctx, alt = true) {
+  const { d, ui } = c;
+  const a: string[] = [];
+  if (d.phone) a.push(`<a class="btn" href="${telHref(d)}">${icon("phone", 18)}<span>${esc(ui.callNow)}</span></a>`);
+  if (alt && d.whatsapp) a.push(`<a class="btn btn-alt" href="${waHref(d)}" target="_blank" rel="noopener">${icon("chat", 18)}<span>WhatsApp</span></a>`);
+  if (!a.length && d.email) a.push(`<a class="btn" href="mailto:${esc(d.email)}">${icon("mail", 18)}<span>${esc(d.email)}</span></a>`);
+  return a.length ? `<div class="acts">${a.join("")}</div>` : "";
+}
+
+function rating(c: Ctx) {
+  const { d, ui } = c;
+  if (!d.showRating || !d.rating) return "";
+  return `<p class="rating">${icon("star", 18, "#f5b301", 1.5, "#f5b301")}<b>${d.rating.toFixed(1)}</b><span>${d.reviews ?? ""} ${esc(ui.rating)}</span></p>`;
+}
+
+/** Imagem do topo na forma do modelo; sem foto, um desenho chapado com o símbolo do ofício */
+function media(c: Ctx, cls: string, onField: FieldKind, pos = "50% 50%") {
+  const { d } = c;
+  if (d.heroImage)
+    return `<div class="media mf ${cls}"><img src="${d.heroImage}" alt="${esc(d.name)}" style="object-position:${pos}"/></div>`;
+  const plateKind: FieldKind = onField === "accent" ? "dark" : onField === "dark" ? "accent" : "accent";
+  const v = fieldVars(c.pal, plateKind);
+  return `<div class="media mf plate ${cls}" style="background:${v.bg};color:${v.fg}" role="img" aria-label="${esc(d.name)}">${icon(d.nicheId, 120, "currentColor", 0.9)}</div>`;
+}
+
+/** Selo com as iniciais do nome, na forma do modelo (seção "sobre", quando não há foto) */
+function seal(c: Ctx, onField: FieldKind) {
+  const { d } = c;
+  if (d.heroImage) return media(c, "about-media", onField, "50% 30%");
+  const v = fieldVars(c.pal, onField === "dark" || c.p.mode === "dark" ? "accent" : "dark");
+  return `<div class="media mf seal" style="background:${v.bg};color:${v.fg}" role="img" aria-label="${esc(d.name)}"><span>${esc(initials(d.name))}</span></div>`;
+}
+
+function hoursTable(c: Ctx, cls = "hrs") {
+  const { d } = c;
+  if (!d.hours.length) return "";
+  return `<table class="${cls}"><tbody>${d.hours
+    .map((h) => {
+      const i = h.indexOf(": ");
+      const day = i > 0 ? h.slice(0, i) : h;
+      const time = i > 0 ? h.slice(i + 2) : "";
+      return `<tr><th scope="row">${esc(day)}</th><td>${esc(time)}</td></tr>`;
+    })
+    .join("")}</tbody></table>`;
+}
+
+function mapEmbed(c: Ctx) {
+  const { d, o } = c;
   if (!d.showMap || !d.address) return "";
   const q = encodeURIComponent(`${d.name}, ${d.address}`);
-  if (o.forPdf)
-    return `<div class="map map-pdf" style="background:${d.light};color:${d.dark}">${icon("pin", 40, d.primary)}<span>${esc(d.address)}</span></div>`;
-  return `<iframe class="map" title="Map" loading="lazy" src="https://maps.google.com/maps?q=${q}&output=embed"></iframe>`;
+  if (o.forPdf) return `<div class="map map-pdf rv">${icon("pin", 36)}<span>${esc(d.address)}</span></div>`;
+  return `<iframe class="map rv" title="${esc(c.ui.findUs)}" loading="lazy" src="https://maps.google.com/maps?q=${q}&output=embed"></iframe>`;
 }
 
-function rating(d: SiteData, color: string) {
-  if (!d.showRating || !d.rating) return "";
-  const ui = SITE_UI[d.lang];
-  return `<div class="rating" style="color:${color}">${icon("star", 18, "#f5b301", 1.5, "#f5b301")}<b>${d.rating.toFixed(1)}</b><span>· ${d.reviews ?? ""} ${esc(ui.rating)}</span></div>`;
+/** Divide o texto do "sobre" em uma frase de abertura e o resto */
+function splitAbout(text: string) {
+  const m = /^(.{20,220}?[.!?])\s+([\s\S]+)$/.exec(text.trim());
+  return m ? [m[1], m[2]] : [text.trim(), ""];
 }
 
-function contactList(d: SiteData, color: string) {
-  const ui = SITE_UI[d.lang];
-  const rows: string[] = [];
-  if (d.phone) rows.push(`<li>${icon("phone", 20, color)}<div><small>${esc(ui.phone)}</small><a href="${telHref(d)}">${esc(d.phone)}</a></div></li>`);
-  if (d.email) rows.push(`<li>${icon("mail", 20, color)}<div><small>${esc(ui.email)}</small><a href="mailto:${esc(d.email)}">${esc(d.email)}</a></div></li>`);
-  if (d.address) rows.push(`<li>${icon("pin", 20, color)}<div><small>${esc(ui.address)}</small><span>${esc(d.address)}</span></div></li>`);
-  return `<ul class="contact-list">${rows.join("")}</ul>`;
+/* ---------------- Cabeçalho ---------------- */
+function header(c: Ctx) {
+  const { d, ui } = c;
+  const h = d.hidden ?? {};
+  const links = [
+    !h.services && d.services.length ? `<a href="#services">${esc(ui.services)}</a>` : "",
+    !h.about && d.about ? `<a href="#about">${esc(ui.about)}</a>` : "",
+    !h.contact ? `<a href="#contact">${esc(ui.contact)}</a>` : "",
+  ].join("");
+  const call = d.phone ? `<a class="btn btn-sm" href="${telHref(d)}">${icon("phone", 16)}<span>${esc(d.phone)}</span></a>` : "";
+  return `<header class="top" style="${fieldCss(c.pal, field(c, "hero"))}"><div class="wrap bar"><a class="wm" href="#top">${wordmark(c)}</a><nav aria-label="Menu">${links}</nav>${call}</div></header>`;
 }
 
-function hours(d: SiteData) {
-  if (!d.hours.length) return "";
-  const ui = SITE_UI[d.lang];
-  return `<div class="hours"><h4>${icon("clock", 18)} ${esc(ui.hours)}</h4><ul>${d.hours
-    .map((h) => {
-      const i = h.indexOf(":");
-      return i > 0
-        ? `<li><span>${esc(h.slice(0, i))}</span><span>${esc(h.slice(i + 1).trim())}</span></li>`
-        : `<li><span>${esc(h)}</span></li>`;
-    })
-    .join("")}</ul></div>`;
+/* ---------------- Topo (6 composições) ---------------- */
+function hero(c: Ctx) {
+  const { d, p, f } = c;
+  const fk = field(c, "hero");
+  const style = fieldCss(c.pal, fk);
+  const sub = d.sub ? `<p class="lead rise" style="--i:2">${esc(d.sub)}</p>` : "";
+  const head = d.headline || d.name;
+  const kind = p.hero === "phone" && !d.phone ? "statement" : p.hero;
+
+  if (kind === "monument") {
+    const len = [...d.name].length;
+    const long = len > 22;
+    return `<section class="hero h-mon" data-sec="hero" id="top" style="${style}"><div class="wrap">
+<h1 class="mon rise" style="${fs(d.name, f, 92, long ? 2 : 1, 56, long ? 170 : 240, 34, 120, len > 9 ? 2 : 1)}">${esc(d.name)}</h1>
+<div class="g mon-row">
+<div class="mon-copy"><p class="statement rise" style="--i:1">${esc(head)}</p>${sub}<div class="rise" style="--i:3">${ctas(c)}${rating(c)}</div></div>
+<div class="mon-media rise" style="--i:4">${media(c, "", fk)}</div>
+</div></div></section>`;
+  }
+
+  if (kind === "split") {
+    return `<section class="hero h-split" data-sec="hero" id="top" style="${style}">
+<div class="split-a"><div class="split-in"><h1 class="h1 rise" style="${fs(head, f, 46, 2, 40, 120, 28, 72)}">${esc(head)}</h1>${sub}<div class="rise" style="--i:3">${ctas(c)}${rating(c)}</div></div></div>
+<div class="split-b rise" style="--i:2">${media(c, "split-media", fk)}</div>
+</section>`;
+  }
+
+  if (kind === "phone") {
+    return `<section class="hero h-phone" data-sec="hero" id="top" style="${style}"><div class="wrap">
+<div class="g"><div class="ph-copy"><h1 class="h1 rise" style="${fs(head, f, 56, 2, 40, 132, 28, 76)}">${esc(head)}</h1>${sub}</div>
+<div class="ph-media rise" style="--i:3">${media(c, "", fk)}</div></div>
+<a class="tel-mon rise" style="--i:4;${fs(d.phone, { ...f, upper: false, cw: f.cw * 1.05 }, 92, 1, 48, 240, 40, 110)}" href="${telHref(d)}" aria-label="${esc(c.ui.callNow)}: ${esc(d.phone)}">${esc(d.phone)}</a>
+<div class="rise" style="--i:5">${ctas(c)}${rating(c)}</div>
+</div></section>`;
+  }
+
+  if (kind === "poster") {
+    return `<section class="hero h-poster" data-sec="hero" id="top" style="${style}"><div class="wrap">
+<h1 class="h1 poster-h rise" style="${fs(head, f, 92, 2, 52, 260, 30, 120)}">${esc(head)}</h1>
+<div class="g poster-row"><div class="poster-copy">${sub}<div class="rise" style="--i:3">${ctas(c)}${rating(c)}</div></div>
+<div class="poster-media rise" style="--i:4">${media(c, "", fk)}</div></div>
+</div></section>`;
+  }
+
+  if (kind === "quiet") {
+    return `<section class="hero h-quiet" data-sec="hero" id="top" style="${style}"><div class="wrap">
+<div class="g"><h1 class="h1 q-h rise" style="${fs(head, f, 52, 2, 36, 96, 28, 52)}">${esc(head)}</h1>
+<div class="q-r">${sub}<div class="rise" style="--i:3">${ctas(c)}${rating(c)}</div></div></div>
+<div class="q-media rise" style="--i:4">${media(c, "", fk)}</div>
+</div></section>`;
+  }
+
+  // statement
+  return `<section class="hero h-stat" data-sec="hero" id="top" style="${style}"><div class="wrap g">
+<div class="st-copy"><h1 class="h1 rise" style="${fs(head, f, 54, 2, 42, 136, 28, 76)}">${esc(head)}</h1>${sub}<div class="rise" style="--i:3">${ctas(c)}${rating(c)}</div></div>
+<div class="st-media rise" style="--i:3">${media(c, "", fk)}</div>
+</div></section>`;
 }
 
-function ctas(d: SiteData, cls = "") {
-  const ui = SITE_UI[d.lang];
-  const a: string[] = [];
-  if (d.phone) a.push(`<a class="btn btn-main ${cls}" href="${telHref(d)}">${icon("phone", 18)} ${esc(ui.callNow)}</a>`);
-  if (d.whatsapp) a.push(`<a class="btn btn-alt ${cls}" href="${waHref(d)}" target="_blank" rel="noopener">${icon("chat", 18)} WhatsApp</a>`);
-  return a.join("");
+/* ---------------- Assinaturas do nicho ---------------- */
+function signature(c: Ctx) {
+  const { d, p, ui } = c;
+  const style = fieldCss(c.pal, field(c, "sig", "accent"));
+  if (p.sig === "callband" && d.phone)
+    return `<section class="sec sig-call" style="${style}"><div class="wrap g">
+<h2 class="h2 rv">${esc(ui.callNow)}</h2>
+<div class="call-r"><a class="call-tel rv" style="--i:1" href="${telHref(d)}">${esc(d.phone)}</a>${d.whatsapp ? `<a class="btn rv" style="--i:2" href="${waHref(d)}" target="_blank" rel="noopener">${icon("chat", 18)}<span>WhatsApp</span></a>` : ""}</div>
+</div></section>`;
+  if (p.sig === "timetable" && d.hours.length)
+    return `<section class="sec sig-time" style="${style}"><div class="wrap g">
+<h2 class="h2 rv">${esc(ui.hours)}</h2>
+<div class="time-r rv" style="--i:1">${hoursTable(c, "hrs big")}</div>
+</div></section>`;
+  return "";
 }
 
-function sticky(d: SiteData, o: RenderOptions) {
+/* ---------------- Serviços (6 composições) ---------------- */
+function services(c: Ctx) {
+  const { d, p, ui, pal } = c;
+  if (!d.services.length) return "";
+  const fk = field(c, "services");
+  const style = fieldCss(pal, fk);
+  const items = d.services;
+  let body = "";
+
+  if (p.services === "rows" || p.services === "board") {
+    body = `<ul class="${p.services === "board" ? "board" : "rows"}">${items
+      .map((s, i) => `<li class="rv" style="--i:${i % 3}"><h3>${esc(s.title)}</h3>${s.desc ? `<p>${esc(s.desc)}</p>` : ""}</li>`)
+      .join("")}</ul>`;
+  } else if (p.services === "menu") {
+    body = `<ul class="menu">${items
+      .map((s, i) => `<li class="rv" style="--i:${i % 2}"><h3><span class="bul mf" aria-hidden="true"></span>${esc(s.title)}</h3>${s.desc ? `<p>${esc(s.desc)}</p>` : ""}</li>`)
+      .join("")}</ul>`;
+  } else if (p.services === "checklist") {
+    body = `<ul class="checks">${items
+      .map((s, i) => `<li class="rv" style="--i:${i % 2}"><span class="ck">${icon("check", 22, "currentColor", 2.6)}</span><div><h3>${esc(s.title)}</h3>${s.desc ? `<p>${esc(s.desc)}</p>` : ""}</div></li>`)
+      .join("")}</ul>`;
+  } else if (p.services === "swatches") {
+    // Cartela de tintas: tons da cor do negócio, com o código de cada tom
+    const tones = [0, 0.3, 0.55, 0.78, -0.3, -0.55].map((t) => (t >= 0 ? mix(pal.accent, "#ffffff", t) : mix(pal.accent, "#000000", -t)));
+    body = `<ul class="tiles swatches">${items
+      .map((s, i) => {
+        const bg = tones[i % tones.length];
+        return `<li class="rv" style="--i:${i % 3};background:${bg};color:${onColor(bg, pal.dark)}"><span class="chip">${bg.toUpperCase()}</span><h3>${esc(s.title)}</h3>${s.desc ? `<p>${esc(s.desc)}</p>` : ""}</li>`;
+      })
+      .join("")}</ul>`;
+  } else {
+    const cycle: FieldKind[] = fk === "accent" ? ["dark", "light", "tone"] : ["accent", "light", "dark", "tone"];
+    body = `<ul class="tiles">${items
+      .map((s, i) => {
+        const v = fieldVars(pal, cycle[i % cycle.length]);
+        return `<li class="rv" style="--i:${i % 3};background:${v.bg};color:${v.fg}"><h3>${esc(s.title)}</h3>${s.desc ? `<p>${esc(s.desc)}</p>` : ""}</li>`;
+      })
+      .join("")}</ul>`;
+  }
+
+  return `<section class="sec svc svc-${p.services}" data-sec="services" id="services" style="${style}"><div class="wrap">
+<h2 class="h2 rv">${esc(ui.services)}</h2>${body}</div></section>`;
+}
+
+/* ---------------- Por que escolher (3 composições) ---------------- */
+function why(c: Ctx) {
+  const { d, p, ui } = c;
+  if (!d.benefits.length) return "";
+  const style = fieldCss(c.pal, field(c, "why"));
+  const list = d.benefits
+    .map((b, i) => `<li class="rv" style="--i:${i}">${p.why === "columns" ? `<span class="bul big mf" aria-hidden="true"></span>` : ""}<h3>${esc(b.title)}</h3>${b.desc ? `<p>${esc(b.desc)}</p>` : ""}</li>`)
+    .join("");
+  return `<section class="sec why why-${p.why}" data-sec="why" style="${style}"><div class="wrap">
+<h2 class="h2 rv">${esc(ui.why)}</h2><ul class="why-l">${list}</ul></div></section>`;
+}
+
+/* ---------------- Sobre (2 composições) ---------------- */
+function about(c: Ctx) {
+  const { d, p, ui } = c;
+  if (!d.about) return "";
+  const fk = field(c, "about");
+  const style = fieldCss(c.pal, fk);
+  const [first, rest] = splitAbout(d.about);
+  const text = `<p class="statement rv" style="--i:1">${esc(first)}</p>${rest ? `<p class="body rv" style="--i:2">${esc(rest)}</p>` : ""}`;
+
+  if (p.about === "media") {
+    return `<section class="sec about about-media" data-sec="about" id="about" style="${style}"><div class="wrap g">
+<div class="ab-media rv">${seal(c, fk)}</div>
+<div class="ab-copy"><h2 class="h2 rv">${esc(ui.about)}</h2>${text}</div>
+</div></section>`;
+  }
+
+  const facts: string[] = [];
+  if (d.city || d.address) facts.push(`<div><dt>${esc(ui.address)}</dt><dd>${esc(d.address || d.city)}</dd></div>`);
+  if (d.phone) facts.push(`<div><dt>${esc(ui.phone)}</dt><dd><a href="${telHref(d)}">${esc(d.phone)}</a></dd></div>`);
+  if (d.showRating && d.rating) facts.push(`<div><dt>Google</dt><dd>${d.rating.toFixed(1)} · ${d.reviews ?? ""} ${esc(ui.rating)}</dd></div>`);
+  if (d.email) facts.push(`<div><dt>${esc(ui.email)}</dt><dd><a href="mailto:${esc(d.email)}">${esc(d.email)}</a></dd></div>`);
+  return `<section class="sec about about-facts" data-sec="about" id="about" style="${style}"><div class="wrap g">
+<div class="ab-copy"><h2 class="h2 rv">${esc(ui.about)}</h2>${text}</div>
+${facts.length ? `<dl class="facts rv" style="--i:2">${facts.join("")}</dl>` : ""}
+</div></section>`;
+}
+
+/* ---------------- Contato ---------------- */
+function contact(c: Ctx) {
+  const { d, ui, f } = c;
+  const style = fieldCss(c.pal, field(c, "contact", "dark"));
+  const lines: string[] = [];
+  if (d.phone) lines.push(`<a class="ct-tel rv" style="--i:1;${fs(d.phone, { ...f, upper: false }, 46, 1, 36, 104, 34, 64)}" href="${telHref(d)}">${esc(d.phone)}</a>`);
+  if (d.email) lines.push(`<p class="ct-line rv" style="--i:2">${icon("mail", 20)}<a href="mailto:${esc(d.email)}">${esc(d.email)}</a></p>`);
+  if (d.address) lines.push(`<p class="ct-line rv" style="--i:2">${icon("pin", 20)}<span>${esc(d.address)}</span></p>`);
+  const hrs = c.p.sig === "timetable" ? "" : hoursTable(c);
+  return `<section class="sec ct" data-sec="contact" id="contact" style="${style}"><div class="wrap">
+<div class="g ct-g"><div class="ct-a"><h2 class="h2 rv">${esc(ui.contact)}</h2>${lines.join("")}<div class="rv" style="--i:3">${ctas(c)}</div></div>
+${hrs ? `<div class="ct-b rv" style="--i:2"><h3>${esc(ui.hours)}</h3>${hrs}</div>` : ""}</div>
+${mapEmbed(c)}
+</div></section>`;
+}
+
+function footer(c: Ctx) {
+  const { d, ui, f } = c;
+  const style = fieldCss(c.pal, field(c, "footer", "ground"));
+  const year = new Date().getFullYear();
+  return `<footer class="ft" style="${style}"><div class="wrap">
+<div class="ft-name" aria-hidden="true" style="${fs(d.name, f, 92, 1, 40, 280, 36, 120)}">${esc(d.name)}</div>
+<div class="ft-row"><span>© ${year} ${esc(d.name)}. ${esc(ui.rights)}</span>${d.address ? `<span>${esc(d.address)}</span>` : ""}</div>
+</div></footer>`;
+}
+
+function stickyBar(c: Ctx) {
+  const { d, o, ui } = c;
   if (o.forPdf || !d.phone) return "";
-  const ui = SITE_UI[d.lang];
-  return `<div class="sticky"><a href="${telHref(d)}" style="background:${d.primary}">${icon("phone", 18, "#fff")} ${esc(ui.callNow)}</a>${
-    d.whatsapp ? `<a href="${waHref(d)}" style="background:#1fa855">${icon("chat", 18, "#fff")} WhatsApp</a>` : ""
+  return `<div class="sticky"><a class="btn" href="${telHref(d)}">${icon("phone", 18)}<span>${esc(ui.callNow)}</span></a>${
+    d.whatsapp ? `<a class="btn wa" href="${waHref(d)}" target="_blank" rel="noopener">${icon("chat", 18)}<span>WhatsApp</span></a>` : ""
   }</div>`;
 }
 
-function badge(d: SiteData) {
-  if (!d.showDemoBadge) return "";
-  return `<div class="demo-badge">${esc(SITE_UI[d.lang].demo)}</div>`;
+function badge(c: Ctx) {
+  return c.d.showDemoBadge ? `<div class="demo-badge">${esc(c.ui.demo)}</div>` : "";
 }
 
-const BASE_CSS = `
-*{box-sizing:border-box;margin:0;padding:0}
-:root{--ease-out:cubic-bezier(.23,1,.32,1);--ease-io:cubic-bezier(.77,0,.175,1)}
-html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-body{-webkit-font-smoothing:antialiased;line-height:1.55;-webkit-tap-highlight-color:transparent}
-h1,h2,h3{text-wrap:balance}p{text-wrap:pretty}
-:focus-visible{outline:3px solid currentColor;outline-offset:3px;border-radius:6px}
-img{max-width:100%}a{color:inherit;text-decoration:none}ul{list-style:none}
-.wrap{max-width:1160px;margin:0 auto;padding:0 24px}
-.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 24px;border-radius:999px;font-weight:700;font-size:16px;transition:transform 160ms var(--ease-out),filter 200ms ease,background-color 200ms ease;touch-action:manipulation;user-select:none}
-.btn:active{transform:scale(.97)}
-@media(hover:hover) and (pointer:fine){.btn:hover{filter:brightness(1.06)}}
-.mono{display:inline-grid;place-items:center;width:42px;height:42px;border-radius:12px;color:#fff;font-weight:800;font-size:16px;letter-spacing:.5px;flex:none}
-.brand{display:flex;align-items:center;gap:12px;min-width:0}
-.brand-name{font-weight:800;font-size:18px;letter-spacing:-.01em;line-height:1.15;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.logo-img{height:46px;width:auto;object-fit:contain}
-.hero-art{overflow:hidden;aspect-ratio:1/1;width:100%}
-.rating{display:inline-flex;align-items:center;gap:6px;font-size:15px}.rating span{opacity:.75}
-.contact-list{display:grid;gap:18px}.contact-list li{display:flex;gap:14px;align-items:flex-start}
-.contact-list small{display:block;font-size:13px;opacity:.6}
-.contact-list a,.contact-list span{font-weight:600;font-size:17px;word-break:break-word}
-.hours h4{display:flex;gap:8px;align-items:center;font-size:15px;margin-bottom:10px}
-.hours li{display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px dashed rgba(0,0,0,.12);font-size:15px;font-variant-numeric:tabular-nums}
-.hours li span:first-child{font-weight:600}.hours li span:first-child::first-letter{text-transform:uppercase}
-.map{width:100%;height:320px;border:0;border-radius:20px;display:block}
-.map-pdf{display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;font-weight:600;text-align:center;padding:24px}
-.sticky{display:none}
-.demo-badge{position:fixed;bottom:14px;left:14px;z-index:60;background:rgba(0,0,0,.78);color:#fff;font:600 12px/1 system-ui,sans-serif;padding:8px 12px;border-radius:999px;letter-spacing:.02em}
-/* Um único momento de movimento: o topo entra em sequência rápida ao abrir a página */
-@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.rise{animation:rise 520ms var(--ease-out) both;animation-delay:calc(var(--i,0) * 60ms)}
-@keyframes fade{from{opacity:0}to{opacity:1}}
-@media(prefers-reduced-motion:reduce){.rise{animation:fade 200ms ease both;animation-delay:0ms}html{scroll-behavior:auto}}
-@media(max-width:760px){
- .sticky{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;gap:8px;padding:10px;background:rgba(255,255,255,.95);box-shadow:0 -6px 24px rgba(0,0,0,.08)}
- .sticky a{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;color:#fff;font-weight:700;padding:14px;border-radius:14px;font-size:15px;transition:transform 160ms var(--ease-out)}.sticky a:active{transform:scale(.97)}
- .sticky{padding-bottom:max(10px,env(safe-area-inset-bottom))}
- body{padding-bottom:76px}.demo-badge{bottom:84px}header .btn{display:none}
-}`;
+/* ---------------- CSS ---------------- */
+function css(c: Ctx) {
+  const { f, p, pal } = c;
+  const m = MOTIFS[p.motif] as { radius?: string; clip?: string; mask?: string };
+  const rb = p.btn === "pill" ? "999px" : "0";
+  const rc = p.btn === "pill" ? "22px" : "0";
+  const motif = [
+    m.radius ? `border-radius:${m.radius}` : "",
+    m.clip ? `clip-path:${m.clip}` : "",
+    m.mask ? `-webkit-mask:${m.mask} center/100% 100% no-repeat;mask:${m.mask} center/100% 100% no-repeat` : "",
+  ]
+    .filter(Boolean)
+    .join(";");
+  const up = f.upper ? "uppercase" : "none";
 
-function doc(d: SiteData, fonts: string, css: string, body: string) {
+  return `
+*{box-sizing:border-box;margin:0;padding:0}
+:root{${fieldCss(pal, "ground")};--fd:${f.display},system-ui,sans-serif;--ft:${f.text},system-ui,sans-serif;--dw:${f.weight};--dt:${f.track}em;--dl:${f.lead};--dc:${up};--tw:${f.textWeight ?? 400};
+--m:clamp(20px,3.2vw,48px);--gap:clamp(16px,2vw,32px);--sec:clamp(80px,8.4vw,124px);--h2m:${Math.min(9.5, 5.2 / (f.cw * (f.upper ? 1.22 : 1))).toFixed(2)}vw;--rb:${rb};--rc:${rc};
+--ease-out:cubic-bezier(.23,1,.32,1);--ease-io:cubic-bezier(.77,0,.175,1)}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{font:var(--tw) 18px/1.55 var(--ft);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;overflow-x:hidden}
+img{max-width:100%;display:block}a{color:inherit;text-decoration:none}ul,ol{list-style:none}
+h1,h2,h3{font-family:var(--fd);font-weight:var(--dw);letter-spacing:var(--dt);text-transform:var(--dc);text-wrap:balance}
+p{text-wrap:pretty}
+:focus-visible{outline:3px solid var(--act);outline-offset:3px}
+::selection{background:${pal.accent};color:${pal.onAccent}}
+.wrap{max-width:1680px;margin:0 auto;padding:0 var(--m)}
+.g{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--gap)}
+.sec{padding:var(--sec) 0}
+.h1{font-size:var(--fs);line-height:var(--dl)}
+.h2{font-size:clamp(42px,5.4vw,104px);line-height:var(--dl);margin-bottom:clamp(40px,4.5vw,72px);max-width:16ch}
+h3{font-size:clamp(24px,2.3vw,36px);line-height:1.05}
+.lead{font-size:clamp(19px,1.45vw,22px);line-height:1.5;max-width:34em;margin-top:clamp(24px,2.6vw,40px)}
+.statement{font-family:var(--fd);font-weight:var(--dw);letter-spacing:calc(var(--dt) * .6);font-size:clamp(24px,2.3vw,36px);line-height:1.18;max-width:24em}
+.body{max-width:36em;margin-top:24px}
+.up .statement{font-family:var(--ft);font-weight:500;letter-spacing:-.01em;text-transform:none;line-height:1.3}
+.mf{${motif}}
+/* botões: retos ou em pílula, decidido uma vez; resposta ao toque em 160ms */
+.btn{display:inline-flex;align-items:center;gap:10px;min-height:54px;padding:0 26px;border-radius:var(--rb);background:var(--act);color:var(--on-act);font:600 18px/1 var(--ft);letter-spacing:0;text-transform:none;white-space:nowrap;
+transition:transform 160ms var(--ease-out),opacity 200ms ease;touch-action:manipulation;user-select:none}
+.btn:active{transform:scale(.97)}
+.btn-alt{background:var(--surf);color:var(--fg)}
+.btn-sm{min-height:44px;padding:0 18px;font-size:15px}
+@media(hover:hover) and (pointer:fine){.btn:hover{opacity:.88}nav a:hover,.ct-line a:hover,.facts a:hover{text-decoration:underline;text-underline-offset:5px;text-decoration-thickness:2px}}
+.acts{display:flex;flex-wrap:wrap;gap:12px;margin-top:clamp(28px,3vw,44px)}
+.rating{display:flex;align-items:center;gap:8px;margin-top:22px;font-size:15px}.rating span{color:var(--mut)}
+/* cabeçalho: marca, três links, uma ação */
+.top .bar{display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:88px}
+.wm{display:flex;align-items:center;min-width:0}
+.wm-name{font:var(--dw) 21px/1.1 var(--fd);letter-spacing:var(--dt);text-transform:var(--dc);max-width:22ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wm-img{height:48px;width:auto;object-fit:contain}
+nav{display:flex;gap:32px;font-size:15px;font-weight:500;margin-left:auto}
+/* imagens */
+.media{position:relative;overflow:hidden;width:100%;background:var(--surf)}
+.media img{width:100%;height:100%;object-fit:cover}
+.plate{display:grid;place-items:center}.plate svg{width:38%;height:auto}
+.seal{display:grid;place-items:center}.seal span{font:var(--dw) clamp(96px,14vw,240px)/1 var(--fd);letter-spacing:var(--dt);text-transform:var(--dc)}
+/* topo: afirmação */
+.h-stat .g{align-items:end;padding-top:clamp(32px,5vw,88px);padding-bottom:clamp(64px,7vw,112px)}
+.st-copy{grid-column:1/8;padding-bottom:clamp(0px,2vw,24px)}
+.st-media{grid-column:8/13}.st-media .media{aspect-ratio:4/5}
+/* topo: monumento */
+.h-mon{padding:clamp(16px,3vw,40px) 0 clamp(64px,7vw,112px)}
+.mon{font-size:var(--fs);line-height:.86;margin-left:-.04em;overflow-wrap:anywhere}
+.mon-row{margin-top:clamp(40px,5vw,80px);align-items:end}
+.mon-copy{grid-column:1/7}.mon-copy .lead{margin-top:24px}
+.mon-media{grid-column:7/13}.mon-media .media{aspect-ratio:16/10}
+/* topo: palco dividido */
+.h-split{display:grid;grid-template-columns:1fr 1fr;min-height:min(92svh,980px)}
+.split-a{display:flex;align-items:flex-end;padding:clamp(56px,7vw,120px) clamp(24px,4vw,72px) clamp(56px,6vw,96px) var(--m)}
+.split-in{max-width:44rem}
+.split-b{position:relative;min-height:420px}.split-b .media{position:absolute;inset:0;height:100%}
+.split-b .plate svg{width:30%}
+/* topo: telefone */
+.h-phone{padding:clamp(32px,5vw,88px) 0 clamp(56px,6vw,96px)}
+.ph-copy{grid-column:1/9}
+.ph-media{grid-column:9/13;align-self:end}.ph-media .media{aspect-ratio:1/1}
+.tel-mon{display:block;font-family:var(--fd);font-weight:var(--dw);letter-spacing:var(--dt);font-size:var(--fs);line-height:1;color:var(--act-t);margin-top:clamp(40px,5vw,80px);white-space:nowrap;font-variant-numeric:tabular-nums;transition:transform 200ms var(--ease-out);width:max-content;max-width:100%}
+.tel-mon:active{transform:scale(.985)}
+/* topo: cartaz */
+.h-poster{padding:clamp(32px,5vw,80px) 0 clamp(56px,6vw,96px)}
+.poster-h{margin-left:-.03em}
+.poster-row{margin-top:clamp(32px,4vw,64px);align-items:end}
+.poster-copy{grid-column:1/7}.poster-copy .lead{margin-top:0}
+.poster-media{grid-column:8/13}.poster-media .media{aspect-ratio:3/2}
+/* topo: discreto */
+.h-quiet{padding:clamp(48px,7vw,128px) 0 clamp(64px,7vw,112px)}
+.h-quiet .g{align-items:end}
+.q-h{grid-column:1/7}
+.q-r{grid-column:8/13}.q-r .lead{margin-top:0}
+.q-media{margin-top:clamp(48px,6vw,96px)}.q-media .media{aspect-ratio:21/9}
+.q-media .plate svg{width:14%}
+/* assinaturas */
+.sig-call .g,.sig-time .g{align-items:start}
+.sig-call .h2,.sig-time .h2{grid-column:1/6;margin-bottom:24px}
+.call-r{grid-column:6/13;display:flex;flex-direction:column;align-items:flex-start;gap:28px}
+.call-tel{font:var(--dw) clamp(44px,6.4vw,124px)/1 var(--fd);letter-spacing:var(--dt);font-variant-numeric:tabular-nums;white-space:nowrap;max-width:100%;transition:transform 200ms var(--ease-out)}
+.call-tel:active{transform:scale(.985)}
+.time-r{grid-column:6/13}
+/* horários: tabela real, linhas separadas por tom e não por fio */
+.hrs{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.hrs th,.hrs td{padding:12px 16px;text-align:left;font-weight:500}
+.hrs td{text-align:right;white-space:nowrap}
+.hrs tr:nth-child(odd){background:var(--surf)}
+.hrs th::first-letter{text-transform:uppercase}
+.hrs.big th,.hrs.big td{font:var(--dw) clamp(22px,2.1vw,34px)/1.1 var(--fd);letter-spacing:calc(var(--dt) * .5);text-transform:var(--dc);padding:18px 20px}
+/* serviços */
+.rows li,.board li{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--gap);padding:clamp(22px,2.4vw,36px) 0}
+.rows h3,.board h3{grid-column:1/7}
+.rows p,.board p{grid-column:7/13;max-width:34em;padding-top:4px}
+.rows li+li{padding-top:clamp(22px,2.4vw,36px)}
+.board{margin:0 calc(var(--m) * -1)}
+.board li{padding-left:var(--m);padding-right:var(--m)}
+.board li:nth-child(odd){background:var(--surf)}
+.board h3{font-size:clamp(34px,4.6vw,84px);line-height:.95}
+.menu{display:grid;grid-template-columns:1fr 1fr;column-gap:clamp(32px,6vw,120px);row-gap:clamp(36px,4vw,64px)}
+.menu h3{display:flex;align-items:baseline;gap:16px}.menu p{margin-top:12px;max-width:30em;padding-left:30px}
+.bul{display:inline-block;width:14px;height:14px;flex:none;background:var(--act)}
+.bul.big{width:48px;height:48px;margin-bottom:28px}
+.checks{display:grid;grid-template-columns:1fr 1fr;column-gap:clamp(32px,6vw,120px);row-gap:clamp(32px,3.6vw,56px)}
+.checks li{display:flex;gap:20px;align-items:flex-start}
+.ck{display:grid;place-items:center;width:44px;height:44px;flex:none;border-radius:var(--rb);background:var(--act);color:var(--on-act)}
+.checks p{margin-top:10px;max-width:30em}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:8px;margin:0 calc(var(--m) * -1 + 8px)}
+.tiles li{min-height:clamp(240px,22vw,340px);padding:clamp(24px,2.4vw,40px);display:flex;flex-direction:column;justify-content:flex-end;gap:14px;border-radius:var(--rc)}
+.tiles h3{font-size:clamp(24px,2.3vw,36px)}.tiles p{max-width:28em}
+.swatches .chip{margin-bottom:auto;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+/* por que escolher */
+.why-l{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(32px,4vw,72px)}
+.why-l p{margin-top:16px;max-width:26em}
+.why-stack .why-l{grid-template-columns:1fr;gap:0}
+.why-stack li{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--gap);padding:clamp(24px,3vw,44px) 0}
+.why-stack h3{grid-column:1/8;font-size:clamp(34px,4.6vw,84px);line-height:.95}
+.why-stack p{grid-column:8/13;margin-top:0;padding-top:8px}
+
+/* sobre */
+.about .g{align-items:start}
+.about-facts .ab-copy{grid-column:1/8}
+.facts{grid-column:9/13;display:grid;gap:24px;align-self:end}
+.facts>div{display:grid;grid-template-columns:7.5em 1fr;gap:16px;align-items:baseline}
+.facts dt{font-size:15px;color:var(--mut)}
+.facts dd{font:var(--dw) clamp(24px,2.3vw,36px)/1.15 var(--fd);letter-spacing:calc(var(--dt) * .5);overflow-wrap:anywhere}
+.about-media .ab-media{grid-column:1/6}.about-media .ab-copy{grid-column:7/13}
+.ab-media .media{aspect-ratio:4/5}
+.ab-copy .h2{margin-bottom:32px}
+/* contato */
+.ct-g{align-items:start}
+.ct-a{grid-column:1/8}.ct-b{grid-column:8/13}
+.ct .h2{margin-bottom:clamp(28px,3vw,48px)}
+.ct-tel{display:block;font-family:var(--fd);font-weight:var(--dw);letter-spacing:var(--dt);font-size:var(--fs);line-height:1;white-space:nowrap;font-variant-numeric:tabular-nums;margin-bottom:28px;width:max-content;max-width:100%}
+.ct-line{display:flex;gap:14px;align-items:center;font-size:21px;margin-top:14px;overflow-wrap:anywhere}
+.ct-line svg{flex:none;color:var(--mut)}
+.ct-b h3{margin-bottom:16px}
+.map{display:block;width:100%;height:clamp(300px,32vw,460px);border:0;margin-top:clamp(48px,5vw,80px);border-radius:var(--rc);background:var(--surf)}
+.map-pdf{display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;text-align:center;font-weight:600}
+/* rodapé: o nome volta de ponta a ponta */
+.ft{padding:clamp(64px,7vw,120px) 0 28px}
+.ft-name{font-family:var(--fd);font-weight:var(--dw);letter-spacing:var(--dt);text-transform:var(--dc);font-size:var(--fs);line-height:.9;margin-left:-.04em;overflow-wrap:anywhere}
+.ft-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px 32px;margin-top:40px;font-size:15px;color:var(--mut)}
+/* barra fixa no celular e selo de demonstração */
+.sticky{display:none}
+.demo-badge{position:fixed;bottom:14px;left:14px;z-index:60;background:#111;color:#fff;font:600 13px/1 var(--ft);padding:9px 12px;border-radius:999px}
+/* movimento: entrada do topo em sequência e seções que sobem ao entrar na tela */
+@keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes drift{from{transform:scale(1.001)}to{transform:scale(1.06)}}
+.rise{animation:rise 760ms var(--ease-out) both;animation-delay:calc(var(--i,0) * 80ms)}
+.media img,.plate svg{animation:drift 20s ease-in-out infinite alternate}
+@supports (animation-timeline:view()){
+ .rv{animation:rise linear forwards;animation-timeline:view();animation-range:entry 0% cover calc(22% + var(--i,0) * 6%)}
+}
+@media(prefers-reduced-motion:reduce){.rise,.rv,.media img,.plate svg{animation:none}html{scroll-behavior:auto}}
+/* tablet: o topo vira uma coluna, com o título no tamanho calculado para a largura toda */
+@media(max-width:1080px){
+ nav{display:none}
+ .h1,.mon,.poster-h{font-size:var(--fsm)}
+ .hero .g>*{grid-column:1/-1!important}
+ .st-media,.mon-media,.poster-media,.q-r{margin-top:48px}
+ .st-media .media,.mon-media .media,.poster-media .media{aspect-ratio:16/10}
+ .ph-media{display:none}
+ .h-split{grid-template-columns:1fr;min-height:0}
+ .split-a{padding:64px var(--m) 56px}
+ .split-b{min-height:0}.split-b .media{position:static;aspect-ratio:16/10}
+ .rows h3,.board h3{grid-column:1/6}.rows p,.board p{grid-column:6/13}
+ .why-l{grid-template-columns:1fr}
+ .why-band li,.why-columns li{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));column-gap:var(--gap)}
+ .why-band h3,.why-columns h3{grid-column:1/7}.why-band p,.why-columns p{grid-column:7/13;margin-top:0}
+ .why-columns .bul.big{grid-column:1/-1;margin-bottom:20px}
+ .ct-a,.ct-b{grid-column:1/-1}.ct-b{margin-top:56px}
+}
+/* celular: uma composição própria, em uma coluna */
+@media(max-width:760px){
+ body{font-size:17px;padding-bottom:84px}
+ .h1,.mon,.tel-mon,.ct-tel,.ft-name,.poster-h{font-size:var(--fsm)}
+ .g>*,.rows li>*,.board li>*,.why-stack li>*,.why-band li>*,.why-columns li>*{grid-column:1/-1!important}
+ .top .bar{min-height:72px}.top .btn{display:none}
+ .h2{margin-bottom:36px;font-size:clamp(28px,var(--h2m),48px)}
+ .st-media,.mon-media,.poster-media,.ph-media,.ab-media,.facts,.ct-b,.call-r,.time-r,.q-r{margin-top:40px}
+ .st-media .media{aspect-ratio:4/3}
+ .ph-media{display:none}
+ .h-split{grid-template-columns:1fr;min-height:0}
+ .split-a{padding:56px var(--m) 48px}
+ .split-b{min-height:0}.split-b .media{position:static;aspect-ratio:4/3}
+ .q-media .media{aspect-ratio:4/3}.q-media .plate svg{width:28%}
+ .menu,.checks{grid-template-columns:1fr}
+ .menu p{padding-left:30px}
+ .rows p,.board p,.why-stack p,.why-band p,.why-columns p{margin-top:10px;padding-top:0}
+ .tiles{margin:0}
+ .tiles li{min-height:200px}
+ .facts{align-self:start}
+ .ab-media .media{aspect-ratio:1/1}
+ .call-tel{font-size:clamp(34px,10.5vw,56px)}
+ .hrs.big th,.hrs.big td{font-size:21px;padding:14px 14px}
+ .sticky{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;gap:8px;padding:10px var(--m);padding-bottom:max(10px,env(safe-area-inset-bottom));background:var(--bg);box-shadow:0 -8px 24px rgba(0,0,0,.12)}
+ .sticky .btn{flex:1;justify-content:center;padding:0 12px}
+ .btn{font-size:16px;padding:0 18px;min-height:50px}
+ .acts{gap:10px}
+ .sticky .wa{background:#157a3c;color:#fff}
+ .demo-badge{bottom:92px}
+}`;
+}
+
+function doc(c: Ctx, body: string) {
+  const { d, f } = c;
   return `<!doctype html><html lang="${d.lang}"><head><meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>${esc(d.name)} — ${esc(d.city)}</title>
+<title>${esc(d.name)}${d.city ? ` — ${esc(d.city)}` : ""}</title>
 <link rel="icon" href="${favicon(d)}"/>
 <meta name="description" content="${esc(d.sub)}"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?${fonts}&display=swap" rel="stylesheet"/>
-<style>${BASE_CSS}${css}</style></head><body>${body}</body></html>`;
+<link href="https://fonts.googleapis.com/css2?${f.q}&display=swap" rel="stylesheet"/>
+<style>${css(c)}</style></head><body${f.upper ? ' class="up"' : ""}>${body}</body></html>`;
 }
 
-/* ---------------- Modelo 1: Clássico ---------------- */
-function classic(d: SiteData, o: RenderOptions) {
-  const ui = SITE_UI[d.lang];
-  const css = `
-body{font-family:'Manrope',sans-serif;color:${d.dark};background:#fff}
-h1,h2,h3{letter-spacing:-.025em;line-height:1.1}
-header{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(0,0,0,.06)}
-header .wrap{display:flex;align-items:center;justify-content:space-between;height:76px}
-nav{display:flex;gap:28px;font-weight:600;font-size:15px}nav a:hover{color:${d.primary}}
-.btn-main{background:${d.primary};color:#fff}.btn-alt{background:${d.light};color:${d.dark}}
-.hero{padding:72px 0 88px;background:linear-gradient(180deg,${d.light} 0%,#fff 100%)}
-.hero .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center}
-.eyebrow{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:15px;color:${d.primary};margin-bottom:18px}
-.hero h1{font-size:58px;font-weight:800}.hero p.sub{font-size:20px;opacity:.8;margin:22px 0 32px;max-width:540px}
-.hero .actions{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:26px}
-.hero-art{box-shadow:0 30px 60px -20px rgba(0,0,0,.25)}
-section{padding:96px 0}.sec-head{max-width:620px;margin-bottom:48px}
-.sec-head h2{font-size:42px;font-weight:800}
-.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
-.card{border:1px solid rgba(0,0,0,.08);border-radius:22px;padding:28px;background:#fff;transition:.2s}
-@media(hover:hover) and (pointer:fine){.card:hover{border-color:${d.primary}}}
-.card .ico{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:${d.light};color:${d.primary};margin-bottom:22px}
-.card h3{font-size:20px;font-weight:800;margin-bottom:8px}.card p{opacity:.72;font-size:15px}
-.why{background:${d.dark};color:#fff}.why .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:40px}
-.why .item{border-top:2px solid ${d.primary};padding-top:22px}.why h3{font-size:22px;margin-bottom:8px}.why p{opacity:.7}
-.about .wrap{display:grid;grid-template-columns:1.2fr .8fr;gap:64px}
-.about p.text{font-size:19px;opacity:.85}
-.hours{background:${d.light};border-radius:22px;padding:28px}
-.contact .wrap{display:grid;grid-template-columns:.9fr 1.1fr;gap:56px;align-items:start}
-.contact-list li svg{color:${d.primary}}
-footer{border-top:1px solid rgba(0,0,0,.08);padding:32px 0;font-size:14px;opacity:.7}
-footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
-@media(max-width:960px){.grid4{grid-template-columns:repeat(2,1fr)}.hero .wrap,.about .wrap,.contact .wrap{grid-template-columns:1fr}.why .grid3{grid-template-columns:1fr}.hero h1{font-size:42px}nav{display:none}}
-@media(max-width:560px){.grid4{grid-template-columns:1fr}.hero h1{font-size:34px}.sec-head h2{font-size:32px}section{padding:64px 0}}`;
-  const body = `${badge(d)}
-<header><div class="wrap"><a href="#" class="brand">${logo(d)}</a>
-<nav><a href="#services">${esc(ui.services)}</a><a href="#about">${esc(ui.about)}</a><a href="#contact">${esc(ui.contact)}</a></nav>
-${d.phone ? `<a class="btn btn-main" style="padding:11px 18px;font-size:14px" href="${telHref(d)}">${icon("phone", 16)} ${esc(d.phone)}</a>` : ""}</div></header>
-<section data-sec="hero" class="hero"><div class="wrap"><div>
-<span class="eyebrow">${icon("pin", 16)} ${esc(d.city)}</span>
-<h1 class="rise" style="--i:1">${esc(d.headline)}</h1><p class="sub rise" style="--i:2">${esc(d.sub)}</p>
-<div class="actions rise" style="--i:3">${ctas(d)}</div>${rating(d, d.dark)}</div>${hero(d, "32px")}</div></section>
-<section data-sec="services" id="services"><div class="wrap"><div class="sec-head"><h2>${esc(ui.services)}</h2></div>
-<div class="grid4">${d.services.map((s) => `<div class="card"><div class="ico">${icon(d.nicheId, 26)}</div><h3>${esc(s.title)}</h3><p>${esc(s.desc)}</p></div>`).join("")}</div></div></section>
-<section data-sec="why" class="why"><div class="wrap"><div class="sec-head"><h2>${esc(ui.why)}</h2></div>
-<div class="grid3">${d.benefits.map((b) => `<div class="item"><h3>${esc(b.title)}</h3><p>${esc(b.desc)}</p></div>`).join("")}</div></div></section>
-<section data-sec="about" id="about" class="about"><div class="wrap"><div><h2 style="font-size:40px;margin-bottom:20px">${esc(ui.about)}</h2><p class="text">${esc(d.about)}</p></div>${hours(d)}</div></section>
-<section data-sec="contact" id="contact" class="contact" style="background:${d.light}"><div class="wrap"><div><h2 style="font-size:40px;margin-bottom:28px">${esc(ui.findUs)}</h2>${contactList(d, d.primary)}<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:30px">${ctas(d)}</div></div>${map(d, o)}</div></section>
-<footer><div class="wrap"><span>© ${new Date().getFullYear()} ${esc(d.name)}. ${esc(ui.rights)}</span><span>${esc(d.city)}</span></div></footer>
-${sticky(d, o)}`;
-  return doc(d, "family=Manrope:wght@400;600;700;800", css, body);
-}
-
-/* ---------------- Modelo 2: Impacto ---------------- */
-function bold(d: SiteData, o: RenderOptions) {
-  const ui = SITE_UI[d.lang];
-  const css = `
-body{font-family:'Inter Tight',sans-serif;background:${d.dark};color:#fff}
-h1,h2,h3{font-family:'Archivo',sans-serif;letter-spacing:-.03em;line-height:.98;text-transform:uppercase}
-header .wrap{display:flex;align-items:center;justify-content:space-between;height:84px}
-.btn-main{background:${d.primary};color:#fff}.btn-alt{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.35)}
-.hero{padding:40px 0 80px;position:relative;overflow:hidden}
-.hero h1{font-size:92px;font-weight:900;max-width:980px}
-.hero h1 em{font-style:normal;color:${d.primary}}
-.hero .row{display:grid;grid-template-columns:1fr 380px;gap:48px;align-items:end;margin-top:40px}
-.hero p.sub{font-size:21px;opacity:.75;max-width:560px;margin-bottom:30px}
-.hero .actions{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px}
-.hero-art{aspect-ratio:4/5}
-.marquee{background:${d.primary};color:#fff;padding:18px 0;overflow:hidden;white-space:nowrap;font-family:'Archivo';font-weight:900;font-size:22px;text-transform:uppercase}
-.marquee span{margin:0 28px}
-section{padding:110px 0}
-.sec-title{font-size:64px;font-weight:900;margin-bottom:56px}
-.list{border-top:1px solid rgba(255,255,255,.15)}
-.list li{display:grid;grid-template-columns:90px 1fr 1.2fr;gap:24px;padding:34px 0;border-bottom:1px solid rgba(255,255,255,.15);align-items:baseline}
-.list .n{color:${d.primary};display:flex}
-.list h3{font-size:30px;font-weight:900}.list p{opacity:.7;font-size:17px}
-.light{background:#fff;color:${d.dark}}
-.light .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
-.light .item{background:${d.light};border-radius:24px;padding:34px}
-.light .item .ico{width:46px;height:46px;border-radius:50%;background:${d.primary};display:grid;place-items:center;color:#fff;margin-bottom:24px}
-.light .item h3{font-size:24px;margin-bottom:10px}
-.about .wrap{display:grid;grid-template-columns:1.3fr .7fr;gap:64px}
-.about p.text{font-size:24px;line-height:1.45;opacity:.85}
-.hours{border:1px solid rgba(255,255,255,.18);border-radius:22px;padding:28px}.hours li{border-color:rgba(255,255,255,.15)}
-.contact .wrap{display:grid;grid-template-columns:1fr 1fr;gap:56px}
-.contact-list li svg{color:${d.primary}}
-footer{border-top:1px solid rgba(255,255,255,.12);padding:30px 0;font-size:14px;opacity:.6}
-@media(max-width:960px){.hero h1{font-size:58px}.hero .row,.about .wrap,.contact .wrap{grid-template-columns:1fr}.light .grid3{grid-template-columns:1fr}.sec-title{font-size:44px}.list li{grid-template-columns:50px 1fr}.list p{grid-column:2}}
-@media(max-width:560px){.hero h1{font-size:42px}section{padding:72px 0}.list h3{font-size:24px}}`;
-  const h1 = esc(d.headline);
-  const body = `${badge(d)}
-<header><div class="wrap"><a href="#" class="brand">${logo(d, true)}</a>${d.phone ? `<a class="btn btn-main" style="padding:12px 20px;font-size:14px" href="${telHref(d)}">${icon("phone", 16)} ${esc(d.phone)}</a>` : ""}</div></header>
-<section data-sec="hero" class="hero"><div class="wrap"><h1 class="rise" style="--i:1">${h1}</h1>
-<div class="row"><div><p class="sub rise" style="--i:2">${esc(d.sub)}</p><div class="actions rise" style="--i:3">${ctas(d)}</div>${rating(d, "#fff")}</div>${hero(d, "28px")}</div></div></section>
-<div class="marquee">${Array.from({ length: 3 }).map(() => d.services.map((s) => `<span>${esc(s.title)}</span><span>✦</span>`).join("")).join("")}</div>
-<section data-sec="services" id="services"><div class="wrap"><h2 class="sec-title">${esc(ui.services)}</h2>
-<ul class="list">${d.services.map((s) => `<li><span class="n">${icon(d.nicheId, 28)}</span><h3>${esc(s.title)}</h3><p>${esc(s.desc)}</p></li>`).join("")}</ul></div></section>
-<section data-sec="why" class="light"><div class="wrap"><h2 class="sec-title">${esc(ui.why)}</h2>
-<div class="grid3">${d.benefits.map((b) => `<div class="item"><div class="ico">${icon("check", 22, "#fff", 3)}</div><h3>${esc(b.title)}</h3><p style="opacity:.75">${esc(b.desc)}</p></div>`).join("")}</div></div></section>
-<section data-sec="about" class="about"><div class="wrap"><div><h2 class="sec-title" style="margin-bottom:28px">${esc(ui.about)}</h2><p class="text">${esc(d.about)}</p></div>${hours(d)}</div></section>
-<section data-sec="contact" class="contact" style="padding-top:0"><div class="wrap"><div><h2 class="sec-title" style="margin-bottom:32px">${esc(ui.contact)}</h2>${contactList(d, d.primary)}<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:32px">${ctas(d)}</div></div>${map(d, o)}</div></section>
-<footer><div class="wrap">© ${new Date().getFullYear()} ${esc(d.name)} · ${esc(d.city)}. ${esc(ui.rights)}</div></footer>
-${sticky(d, o)}`;
-  return doc(d, "family=Archivo:wght@800;900&family=Inter+Tight:wght@400;500;700", css, body);
-}
-
-/* ---------------- Modelo 3: Acolhedor ---------------- */
-function soft(d: SiteData, o: RenderOptions) {
-  const ui = SITE_UI[d.lang];
-  const css = `
-body{font-family:'DM Sans',sans-serif;background:${d.light};color:${d.dark}}
-h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;letter-spacing:-.02em;line-height:1.08}
-header .wrap{display:flex;align-items:center;justify-content:space-between;height:84px}
-nav{display:flex;gap:26px;font-size:15px;font-weight:500}
-.btn-main{background:${d.dark};color:#fff}.btn-alt{background:#fff;color:${d.dark}}
-.hero{text-align:center;padding:56px 0 40px}
-.hero h1{font-size:68px;max-width:880px;margin:0 auto}
-.hero h1 i{color:${d.primary}}
-.hero p.sub{font-size:20px;opacity:.75;max-width:600px;margin:22px auto 32px}
-.hero .actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:22px}
-.hero .frame{max-width:980px;margin:56px auto 0}
-.hero-art{aspect-ratio:16/8}
-section{padding:96px 0}
-.sec-head{text-align:center;max-width:640px;margin:0 auto 52px}.sec-head h2{font-size:48px}
-.sec-head .k{font-size:14px;font-weight:700;color:${d.primary};letter-spacing:.14em;text-transform:uppercase;display:block;margin-bottom:12px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
-.svc{background:#fff;border-radius:28px;padding:30px;display:flex;gap:20px;align-items:flex-start}
-.svc .ico{flex:none;width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:${d.light};color:${d.primary}}
-.svc h3{font-size:24px;margin-bottom:6px}.svc p{opacity:.72}
-.white{background:#fff}
-.benefits{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
-.benefits div{text-align:center;padding:24px}
-.benefits .ico{width:64px;height:64px;margin:0 auto 18px;border-radius:50%;background:${d.primary};display:grid;place-items:center;color:#fff}
-.benefits h3{font-size:24px;margin-bottom:8px}.benefits p{opacity:.72}
-.about .wrap{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
-.about blockquote{font-family:'Fraunces',serif;font-size:30px;line-height:1.35}
-.hours{background:#fff;border-radius:28px;padding:30px}
-.contact .box{background:${d.dark};color:#fff;border-radius:36px;padding:56px;display:grid;grid-template-columns:1fr 1fr;gap:48px}
-.contact .box h2{font-size:44px;margin-bottom:28px}
-.contact .btn-main{background:${d.primary}}
-footer{padding:36px 0;text-align:center;font-size:14px;opacity:.6}
-@media(max-width:960px){.hero h1{font-size:46px}.grid2,.benefits,.about .wrap,.contact .box{grid-template-columns:1fr}nav{display:none}.contact .box{padding:32px}.hero-art{aspect-ratio:4/3}}
-@media(max-width:560px){.hero h1{font-size:36px}.sec-head h2{font-size:34px}section{padding:64px 0}}`;
-  const h1 = esc(d.headline);
-  const body = `${badge(d)}
-<header><div class="wrap"><a href="#" class="brand">${logo(d)}</a><nav><a href="#services">${esc(ui.services)}</a><a href="#about">${esc(ui.about)}</a><a href="#contact">${esc(ui.contact)}</a></nav></div></header>
-<section data-sec="hero" class="hero" style="padding-bottom:40px"><div class="wrap"><h1 class="rise" style="--i:1">${h1}</h1><p class="sub rise" style="--i:2">${esc(d.sub)}</p><div class="actions rise" style="--i:3">${ctas(d)}</div>${rating(d, d.dark)}
-<div class="frame">${hero(d, "36px", "meet")}</div></div></section>
-<section data-sec="services" id="services"><div class="wrap"><div class="sec-head"><h2>${esc(ui.services)}</h2></div>
-<div class="grid2">${d.services.map((s) => `<div class="svc"><div class="ico">${icon(d.nicheId, 26)}</div><div><h3>${esc(s.title)}</h3><p>${esc(s.desc)}</p></div></div>`).join("")}</div></div></section>
-<section data-sec="why" class="white"><div class="wrap"><div class="sec-head"><h2>${esc(ui.why)}</h2></div>
-<div class="benefits">${d.benefits.map((b) => `<div><div class="ico">${icon("check", 26, "#fff", 2.5)}</div><h3>${esc(b.title)}</h3><p>${esc(b.desc)}</p></div>`).join("")}</div></div></section>
-<section data-sec="about" id="about" class="about"><div class="wrap"><div><h2 style="font-size:40px">${esc(ui.about)}</h2><blockquote style="margin-top:16px">${esc(d.about)}</blockquote></div>${hours(d) || map(d, o)}</div></section>
-<section data-sec="contact" id="contact" class="contact" style="padding-top:0"><div class="wrap"><div class="box"><div><h2>${esc(ui.contact)}</h2>${contactList(d, d.primary)}<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:30px">${ctas(d)}</div></div>${d.hours.length ? map(d, o) : ""}</div></div></section>
-<footer>© ${new Date().getFullYear()} ${esc(d.name)} · ${esc(ui.rights)}</footer>
-${sticky(d, o)}`;
-  return doc(d, "family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,600&family=DM+Sans:wght@400;500;700", css, body);
-}
-
-/* ---------------- Modelo 4: Vitrine ----------------
-   Ideia: a fachada de uma loja de bairro. O nome é o letreiro, o toldo listrado
-   leva a cor da marca. Todo o resto fica quieto para o letreiro aparecer. */
-function storefront(d: SiteData, o: RenderOptions) {
-  const ui = SITE_UI[d.lang];
-  const len = d.name.length;
-  const signSize = len <= 12 ? "clamp(56px,11vw,148px)" : len <= 22 ? "clamp(44px,8vw,110px)" : "clamp(34px,5.6vw,78px)";
-  const css = `
-body{font-family:'Instrument Sans',sans-serif;color:${d.dark};background:#fff}
-h1,h2,h3{font-family:'Bricolage Grotesque',sans-serif;letter-spacing:-.025em;line-height:1.02}
-.awning{height:34px;background:repeating-linear-gradient(90deg,${d.primary} 0 44px,${d.light} 44px 88px);-webkit-mask:radial-gradient(22px 11px at 22px 100%,#0000 97%,#000) 0 0/44px 100%;mask:radial-gradient(22px 11px at 22px 100%,#0000 97%,#000) 0 0/44px 100%}
-.topbar .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:18px;padding-bottom:6px;font-size:15px}
-.topbar .where{display:flex;align-items:center;gap:8px;opacity:.75}
-.btn-main{background:${d.dark};color:#fff}.btn-alt{background:${d.light};color:${d.dark}}
-.sign{font-size:${signSize};font-weight:800;line-height:.9;letter-spacing:-.045em;overflow-wrap:anywhere;padding:18px 0 22px;border-bottom:6px solid ${d.primary}}
-.sign .logo-img{height:.8em;vertical-align:-.08em;margin-right:.15em}
-.intro{display:grid;grid-template-columns:1.35fr .9fr;gap:56px;padding:44px 0 40px;align-items:start}
-.intro .lede{font-family:'Bricolage Grotesque',sans-serif;font-size:34px;font-weight:600;line-height:1.12;letter-spacing:-.02em;max-width:20ch}
-.intro p.sub{font-size:19px;opacity:.78;margin:18px 0 28px;max-width:52ch}
-.intro .actions{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:22px}
-.card-hours{border:2px solid ${d.dark};border-radius:22px;padding:24px 26px;background:#fff}
-.card-hours .hours h4{font-family:'Bricolage Grotesque';font-size:20px;margin-bottom:12px}
-.window{padding-bottom:24px}.window .hero-art{aspect-ratio:21/8;border-radius:28px}
-section.block{padding:84px 0}
-.sh{font-size:44px;font-weight:800;margin-bottom:34px}
-.svc{display:grid;grid-template-columns:1fr 1fr;column-gap:56px}
-.svc li{display:grid;grid-template-columns:52px 1fr;gap:18px;padding:24px 0;border-top:1px solid rgba(0,0,0,.1)}
-.svc .ico{width:52px;height:52px;border-radius:50%;background:${d.light};color:${d.primary};display:grid;place-items:center}
-.svc h3{font-size:22px;margin-bottom:4px}.svc p{opacity:.72;max-width:44ch}
-.why{background:${d.light}}
-.why ul{display:grid;grid-template-columns:repeat(3,1fr);gap:40px}
-.why h3{font-size:26px;margin-bottom:8px}.why p{opacity:.75}
-.about .wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:56px;align-items:center}
-.about p.text{font-size:22px;line-height:1.5;max-width:40ch}
-.contact .panel{background:${d.dark};color:#fff;border-radius:32px;padding:52px;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start}
-.contact .panel h2{font-size:44px;margin-bottom:28px;color:#fff}
-.contact .btn-main{background:${d.primary}}.contact .btn-alt{background:#fff;color:${d.dark}}
-.contact-list li svg{color:${d.primary}}
-footer{padding:36px 0 44px;font-size:14px;opacity:.65}
-footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
-@media(max-width:960px){.intro,.about .wrap,.contact .panel{grid-template-columns:1fr}.svc{grid-template-columns:1fr}.why ul{grid-template-columns:1fr}.window .hero-art{aspect-ratio:4/3}.intro .lede{font-size:28px}}
-@media(max-width:560px){.sh,.contact .panel h2{font-size:34px}section.block{padding:60px 0}.contact .panel{padding:30px;border-radius:24px}}`;
-  const signLogo = d.logo ? `<img class="logo-img" src="${d.logo}" alt=""/>` : "";
-  const body = `${badge(d)}
-<div class="awning" aria-hidden="true"></div>
-<div class="topbar"><div class="wrap"><span class="where">${icon("pin", 16)} ${esc(d.city)}</span>${d.phone ? `<a class="btn btn-main" style="padding:11px 18px;font-size:14px" href="${telHref(d)}">${icon("phone", 16)} ${esc(d.phone)}</a>` : ""}</div></div>
-<section data-sec="hero" class="hero"><div class="wrap">
-<h1 class="sign rise" style="--i:0">${signLogo}${esc(d.name)}</h1>
-<div class="intro"><div><p class="lede rise" style="--i:1">${esc(d.headline)}</p><p class="sub rise" style="--i:2">${esc(d.sub)}</p><div class="actions rise" style="--i:3">${ctas(d)}</div>${rating(d, d.dark)}</div>
-<div class="card-hours rise" style="--i:3">${hours(d) || contactList(d, d.primary)}</div></div>
-<div class="window">${hero(d, "28px", d.heroImage ? "slice" : "meet")}</div>
-</div></section>
-<section data-sec="services" id="services" class="block"><div class="wrap"><h2 class="sh">${esc(ui.services)}</h2>
-<ul class="svc">${d.services.map((s) => `<li><span class="ico">${icon(d.nicheId, 24)}</span><div><h3>${esc(s.title)}</h3><p>${esc(s.desc)}</p></div></li>`).join("")}</ul></div></section>
-<section data-sec="why" class="block why"><div class="wrap"><h2 class="sh">${esc(ui.why)}</h2>
-<ul>${d.benefits.map((b) => `<li><h3>${esc(b.title)}</h3><p>${esc(b.desc)}</p></li>`).join("")}</ul></div></section>
-<section data-sec="about" id="about" class="block about"><div class="wrap"><div><h2 class="sh">${esc(ui.about)}</h2><p class="text">${esc(d.about)}</p></div>${map(d, o)}</div></section>
-<section data-sec="contact" id="contact" class="block contact" style="padding-top:0"><div class="wrap"><div class="panel"><div><h2>${esc(ui.contact)}</h2>${contactList(d, d.primary)}</div><div style="display:flex;flex-direction:column;gap:12px;align-items:flex-start">${ctas(d)}</div></div></div></section>
-<footer><div class="wrap"><span>© ${new Date().getFullYear()} ${esc(d.name)}. ${esc(ui.rights)}</span><span>${esc(d.address)}</span></div></footer>
-${sticky(d, o)}`;
-  return doc(d, "family=Bricolage+Grotesque:opsz,wght@12..96,600..800&family=Instrument+Sans:wght@400;500;600", css, body);
-}
-
-/* ---------------- Modelo 5: Atendimento ----------------
-   Ideia: quem procura um encanador ou uma clínica quer falar com alguém já.
-   A peça central é um cartão de contato com picote, com o telefone em destaque. */
-function service(d: SiteData, o: RenderOptions) {
-  const ui = SITE_UI[d.lang];
-  const heroBg = "#ffffff";
-  const css = `
-body{font-family:'Schibsted Grotesk',sans-serif;color:${d.dark};background:#fff}
-h1,h2,h3{letter-spacing:-.025em;line-height:1.06}
-header .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;height:78px}
-.btn-main{background:${d.primary};color:#fff}.btn-alt{background:${d.light};color:${d.dark}}
-.hero{background:${heroBg};padding:36px 0 72px}
-.hero .wrap{display:grid;grid-template-columns:1.15fr .85fr;gap:56px;align-items:start}
-.hero h1{font-size:56px;font-weight:800;max-width:15ch}
-.hero p.sub{font-size:19px;opacity:.78;margin:20px 0 26px;max-width:46ch}
-.checks{display:grid;grid-template-columns:1fr 1fr;gap:10px 22px;margin:4px 0 26px}
-.checks li{display:flex;gap:10px;align-items:flex-start;font-weight:600}
-.checks svg{flex:none;color:${d.primary};margin-top:2px}
-.ticket{position:relative;background:#fff;border-radius:26px;box-shadow:0 1px 2px rgba(0,0,0,.05),0 28px 60px -28px rgba(0,0,0,.35),0 0 0 1px rgba(0,0,0,.06);overflow:visible}
-.ticket .top{padding:30px 30px 26px}
-.ticket .label{font-size:15px;opacity:.65}
-.ticket .tel{display:block;font-size:38px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:6px 0 20px;color:${d.dark};overflow-wrap:anywhere}
-.ticket .ctas{display:flex;flex-direction:column;gap:10px}.ticket .ctas .btn{justify-content:center}
-.ticket .cut{position:relative;height:28px}
-.ticket .cut::before{content:"";position:absolute;left:24px;right:24px;top:50%;border-top:2px dashed rgba(0,0,0,.14)}
-.ticket .cut::after,.ticket .cut i{content:"";position:absolute;top:0;width:28px;height:28px;border-radius:50%;background:${heroBg};box-shadow:inset 0 0 0 1px rgba(0,0,0,.06)}
-.ticket .cut::after{right:-14px}.ticket .cut i{left:-14px}
-.ticket .bottom{padding:12px 30px 28px}
-.ticket .bottom .hours li{padding:5px 0;font-size:14px}
-.ticket .addr{display:flex;gap:10px;font-size:15px;margin-bottom:12px;opacity:.85}
-section.block{padding:84px 0}
-.sh{font-size:42px;font-weight:800;margin-bottom:12px}
-.lead{font-size:18px;opacity:.72;max-width:52ch;margin-bottom:36px}
-.svc{display:grid;grid-template-columns:1fr 1fr;gap:0 48px}
-.svc li{display:flex;gap:16px;padding:22px 0;border-bottom:1px solid rgba(0,0,0,.09)}
-.svc svg{flex:none;color:${d.primary};margin-top:3px}
-.svc h3{font-size:20px;margin-bottom:4px}.svc p{opacity:.72}
-.why{background:${d.dark};color:#fff}
-.why ul{display:grid;grid-template-columns:repeat(3,1fr)}
-.why li{padding:6px 32px;border-left:1px solid rgba(255,255,255,.18)}.why li:first-child{padding-left:0;border-left:0}
-.why h3{font-size:24px;margin-bottom:8px;color:#fff}.why p{opacity:.72}
-.about .wrap{display:grid;grid-template-columns:.9fr 1.1fr;gap:56px;align-items:center}
-.about .hero-art{aspect-ratio:4/3;border-radius:26px}
-.about p.text{font-size:20px;line-height:1.6;max-width:46ch}
-.contact .wrap{display:grid;grid-template-columns:1fr 1.1fr;gap:56px;align-items:start}
-.contact-list li svg{color:${d.primary}}
-footer{border-top:1px solid rgba(0,0,0,.08);padding:30px 0;font-size:14px;opacity:.7}
-@media(max-width:960px){.hero .wrap,.about .wrap,.contact .wrap{grid-template-columns:1fr}.hero h1{font-size:40px}.svc{grid-template-columns:1fr}.why ul{grid-template-columns:1fr;gap:24px}.why li{padding:0 0 0 18px;border-left:2px solid ${d.primary}}.why li:first-child{padding-left:18px;border-left:2px solid ${d.primary}}.ticket .cut::after,.ticket .cut i{background:${heroBg}}}
-@media(max-width:560px){header .rating{display:none}.hero h1{font-size:34px}.checks{grid-template-columns:1fr}.sh{font-size:32px}section.block{padding:60px 0}.ticket .tel{font-size:30px}}`;
-  const ticket = `<aside class="ticket rise" style="--i:3" aria-label="${esc(ui.contact)}">
-<div class="top"><span class="label">${esc(ui.callNow)}</span>${d.phone ? `<a class="tel" href="${telHref(d)}">${esc(d.phone)}</a>` : `<span class="tel">${esc(d.name)}</span>`}<div class="ctas">${ctas(d)}</div></div>
-<div class="cut"><i></i></div>
-<div class="bottom">${d.address ? `<p class="addr">${icon("pin", 18, d.primary)}<span>${esc(d.address)}</span></p>` : ""}${hours(d)}</div></aside>`;
-  const body = `${badge(d)}
-<header><div class="wrap"><a href="#" class="brand">${logo(d)}</a>${rating(d, d.dark)}</div></header>
-<section data-sec="hero" class="hero"><div class="wrap"><div>
-<h1 class="rise" style="--i:1">${esc(d.headline)}</h1><p class="sub rise" style="--i:2">${esc(d.sub)}</p>
-<ul class="checks rise" style="--i:3">${d.services.slice(0, 4).map((s) => `<li>${icon("check", 20, d.primary, 3)}<span>${esc(s.title)}</span></li>`).join("")}</ul>
-</div>${ticket}</div></section>
-<section data-sec="services" id="services" class="block"><div class="wrap"><h2 class="sh" style="margin-bottom:28px">${esc(ui.services)}</h2>
-<ul class="svc">${d.services.map((s) => `<li>${icon("check", 22, d.primary, 3)}<div><h3>${esc(s.title)}</h3><p>${esc(s.desc)}</p></div></li>`).join("")}</ul></div></section>
-<section data-sec="why" class="block why"><div class="wrap"><h2 class="sh" style="margin-bottom:36px">${esc(ui.why)}</h2>
-<ul>${d.benefits.map((b) => `<li><h3>${esc(b.title)}</h3><p>${esc(b.desc)}</p></li>`).join("")}</ul></div></section>
-<section data-sec="about" id="about" class="block about"><div class="wrap">${hero(d, "26px")}<div><h2 class="sh" style="margin-bottom:18px">${esc(ui.about)}</h2><p class="text">${esc(d.about)}</p></div></div></section>
-<section data-sec="contact" id="contact" class="block contact" style="background:${d.light}"><div class="wrap"><div><h2 class="sh" style="margin-bottom:28px">${esc(ui.findUs)}</h2>${contactList(d, d.primary)}<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:30px">${ctas(d)}</div></div>${map(d, o)}</div></section>
-<footer><div class="wrap">© ${new Date().getFullYear()} ${esc(d.name)} · ${esc(d.city)}. ${esc(ui.rights)}</div></footer>
-${sticky(d, o)}`;
-  return doc(d, "family=Schibsted+Grotesk:wght@400;500;600;700;800", css, body);
-}
-
-const NO_MOTION = "<style>.rise{animation:none!important}*{transition:none!important}</style>";
+const NO_MOTION = "<style>.rise,.rv,.media img,.plate svg{animation:none!important}*{transition:none!important}</style>";
 
 export function renderSite(d: SiteData, o: RenderOptions = {}) {
-  const html =
-    d.template === "bold" ? bold(d, o)
-    : d.template === "soft" ? soft(d, o)
-    : d.template === "storefront" ? storefront(d, o)
-    : d.template === "service" ? service(d, o)
-    : classic(d, o);
-  const out = applyBlocks(html, d);
+  const p = presetById(d.template);
+  const c: Ctx = { d, p, f: FONTS[p.font], pal: palette(d, p), ui: SITE_UI[d.lang], o };
+  const body = [header(c), "<main>", hero(c), services(c), signature(c), why(c), about(c), contact(c), "</main>", footer(c), stickyBar(c), badge(c)].join("\n");
+  const out = applyBlocks(doc(c, body), d);
   // PDF e miniaturas: sem animação, para a captura sair completa
   return o.forPdf ? out.replace("</head>", NO_MOTION + "</head>") : out;
 }
