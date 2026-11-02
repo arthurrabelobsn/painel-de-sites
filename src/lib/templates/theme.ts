@@ -83,3 +83,9 @@ export function fieldCss(p: Palette, kind: FieldKind) {
   const v = fieldVars(p, kind);
   return `--bg:${v.bg};--fg:${v.fg};--mut:${v.mut};--surf:${v.surf};--act:${v.act};--on-act:${v.onAct};--act-t:${v.actText};background:${v.bg};color:${v.fg}`;
 }
+
+/** Cor com transparência (para degradês que fundem a foto com o fundo) */
+export function alpha(c: string, a: number) {
+  const [r, g, b] = rgb(c);
+  return `rgba(${r},${g},${b},${a})`;
+}

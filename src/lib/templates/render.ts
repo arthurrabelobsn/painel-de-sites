@@ -13,7 +13,7 @@ import { applyBlocks } from "./blocks";
 import { FONTS, MOTIFS, presetById, type FontSystem, type Preset } from "./presets";
 import { brushStroke, divider, floaters, heroBackground, heroEnd, pattern, strip } from "./deco";
 import { photosFor, photoUrl } from "../data/photos";
-import { fieldCss, fieldVars, mix, onColor, contrast, type FieldKind, type Palette } from "./theme";
+import { alpha, fieldCss, fieldVars, mix, onColor, contrast, type FieldKind, type Palette } from "./theme";
 import type { RenderOptions, SiteData } from "./types";
 
 export const esc = (s: string | number | null | undefined) =>
@@ -111,7 +111,7 @@ function stock(c: Ctx, which: "hero" | "about") {
 /** Moldura decorativa atrás da imagem (sombra deslocada, brilho ou contorno) */
 function framed(c: Ctx, inner: string, cls: string) {
   const fr = c.p.deco?.frame;
-  if (!fr || cls.includes("split")) return inner;
+  if (!fr || c.p.soft || cls.includes("split")) return inner;
   const col = fr === "glow" ? c.pal.accent : mix(c.pal.accent, c.pal.light, 0.35);
   return `<div class="mw ${fr}" style="--frc:${col}"><div class="fr mf"></div>${inner}</div>`;
 }
@@ -121,14 +121,14 @@ function media(c: Ctx, cls: string, onField: FieldKind, pos = "50% 50%", which: 
   const { d } = c;
   const upload = which === "hero" ? d.heroImage : d.aboutImage;
   if (upload)
-    return framed(c, `<div class="media mf ${cls}"><img src="${upload}" alt="${esc(d.name)}" style="object-position:${pos}"/></div>`, cls);
+    return framed(c, `<div class="media ${c.p.soft ? "soft" : "mf"} ${cls}"><img src="${upload}" alt="${esc(d.name)}" style="object-position:${pos}"/></div>`, cls);
   const plateKind: FieldKind = onField === "accent" ? "dark" : "accent";
   const v = fieldVars(c.pal, plateKind);
   const ph = stock(c, which);
   const photo = ph ? `<div class="ph" style="background-image:url('${photoUrl(ph.id, which === "hero" ? 1600 : 1100)}');background-position:${pos}"></div>` : "";
   return framed(
     c,
-    `<div class="media mf plate ${cls}" style="background:${v.bg};color:${v.fg}" role="img" aria-label="${esc(ph?.alt ?? d.name)}">${icon(d.nicheId, 120, "currentColor", 0.9)}${photo}</div>`,
+    `<div class="media ${c.p.soft ? "soft" : "mf"} plate ${cls}" style="background:${v.bg};color:${v.fg}" role="img" aria-label="${esc(ph?.alt ?? d.name)}">${icon(d.nicheId, 120, "currentColor", 0.9)}${photo}</div>`,
     cls,
   );
 }
@@ -182,7 +182,33 @@ function header(c: Ctx) {
   return `<header class="top"><div class="wrap bar"><a class="wm" href="#top">${wordmark(c)}</a><nav aria-label="Menu">${links}</nav>${call}</div></header>`;
 }
 
-/* ---------------- Topo (6 composições) ---------------- */
+/** Foto do topo como fundo (enviada ou de banco); vazio se não houver */
+function heroSrc(c: Ctx) {
+  if (c.d.heroImage) return c.d.heroImage;
+  const s = stock(c, "hero");
+  return s ? photoUrl(s.id, 1920) : "";
+}
+const heroAlt = (c: Ctx) => esc(stock(c, "hero")?.alt ?? c.d.name);
+const photoDiv = (c: Ctx, src: string, cls = "hp-img") =>
+  `<div class="${cls}" role="img" aria-label="${heroAlt(c)}" style="background-image:url('${src}')"></div>`;
+
+/** Bloco de texto do topo, comum às composições com foto */
+function heroCopy(c: Ctx, center = false) {
+  const { d, p, f } = c;
+  const head = d.headline || d.name;
+  const hx = p.deco?.h1Grad ? " grad" : "";
+  const w = center ? 84 : 50;
+  const title = p.nameTitle
+    ? `<h1 class="h1 mon-t${hx} rise" style="${fs(d.name, f, center ? 86 : 50, [...d.name].length > 18 ? 2 : 1, 48, 200, 34, 110, [...d.name].length > 9 ? 2 : 1)}">${esc(d.name)}</h1><p class="statement rise" style="--i:1">${esc(head)}</p>`
+    : `<h1 class="h1${hx} rise" style="${fs(head, f, w, 2, 40, center ? 120 : 112, 28, 72)}">${esc(head)}</h1>`;
+  const sub = d.sub ? `<p class="lead rise" style="--i:2">${esc(d.sub)}</p>` : "";
+  const tel = p.phoneInHero && d.phone
+    ? `<a class="tel-big rise" style="--i:3" href="${telHref(d)}" aria-label="${esc(c.ui.callNow)}: ${esc(d.phone)}">${icon("phone", 34, "currentColor", 2.2)}<span>${esc(d.phone)}</span></a>`
+    : "";
+  return `${title}${sub}${tel}<div class="rise" style="--i:4">${ctas(c)}${rating(c)}</div>`;
+}
+
+/* ---------------- Topo (9 composições) ---------------- */
 function hero(c: Ctx) {
   const { d, p, f } = c;
   const fk = field(c, "hero");
@@ -190,7 +216,25 @@ function hero(c: Ctx) {
   const hx = p.deco?.h1Grad ? " grad" : "";
   const sub = d.sub ? `<p class="lead rise" style="--i:2">${esc(d.sub)}</p>` : "";
   const head = d.headline || d.name;
-  const kind = p.hero === "phone" && !d.phone ? "statement" : p.hero;
+  const src = heroSrc(c);
+  const photoKinds = ["immersive", "fade", "centered"];
+  const kind = p.hero === "phone" && !d.phone ? "statement" : photoKinds.includes(p.hero) && !src ? (p.hero === "centered" ? "monument" : "statement") : p.hero;
+
+  if (kind === "immersive") {
+    // a foto e o degradê ficam no palco (stage), atrás do cabeçalho também
+    return `<section class="hero h-imm" data-sec="hero" id="top"><div class="wrap"><div class="imm-copy">${heroCopy(c)}</div></div></section>`;
+  }
+
+  if (kind === "fade") {
+    // a foto fica no palco (atrás do cabeçalho) e se funde ao fundo por máscara
+    return `<section class="hero h-fade" data-sec="hero" id="top"><div class="wrap"><div class="fade-copy">${heroCopy(c)}</div></div></section>`;
+  }
+
+  if (kind === "centered") {
+    return `<section class="hero h-cen" data-sec="hero" id="top"><div class="wrap cen-in">${heroCopy(c, true)}</div>
+<div class="cen-media rise" style="--i:5">${photoDiv(c, src)}</div></section>`;
+  }
+
 
   if (kind === "monument") {
     const len = [...d.name].length;
@@ -465,6 +509,34 @@ nav{display:flex;gap:32px;font-size:15px;font-weight:500;margin-left:auto}
 .mw.ring .fr{transform:scale(1.06) rotate(-3deg);opacity:.5}
 .plate{position:relative}
 .ph{position:absolute;inset:0;background-size:cover;background-repeat:no-repeat;animation:drift 22s ease-in-out infinite alternate}
+/* topos com foto: imersivo, lateral suave e centralizado */
+.hp-img{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat}
+.stage.has-imm{overflow:hidden;isolation:isolate}
+.imm-bg{z-index:-2;animation:drift 26s ease-in-out infinite alternate}
+.imm-scrim{position:absolute;inset:0;z-index:-1;background:var(--scrim)}
+.h-imm{min-height:min(84svh,880px);display:flex;align-items:center;padding:clamp(40px,6vw,96px) 0 clamp(72px,8vw,128px)}
+.h-imm .wrap{width:100%}
+.imm-copy{max-width:min(46rem,58%)}
+.tel-big{display:inline-flex;align-items:center;gap:14px;margin-top:clamp(28px,3vw,44px);font:var(--dw) clamp(40px,4.6vw,84px)/1 var(--fd);letter-spacing:var(--dt);color:var(--act-t);font-variant-numeric:tabular-nums;white-space:nowrap;transition:transform 200ms var(--ease-out)}
+.tel-big:active{transform:scale(.985)}
+.tel-big svg{width:.6em;height:.6em;flex:none}
+.h-fade{min-height:min(84svh,860px);display:flex;align-items:center;padding:clamp(40px,6vw,96px) 0 clamp(72px,8vw,120px)}
+.h-fade .wrap{width:100%}
+.fade-bg{position:absolute;top:0;right:0;bottom:0;width:60%;z-index:-1;overflow:hidden;
+-webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 46%),linear-gradient(0deg,transparent 0%,#000 26%);-webkit-mask-composite:source-in;
+mask-image:linear-gradient(90deg,transparent 0%,#000 46%),linear-gradient(0deg,transparent 0%,#000 26%);mask-composite:intersect}
+.fade-bg .hp-img{animation:drift 26s ease-in-out infinite alternate}
+.fade-copy{position:relative;max-width:min(44rem,46%)}
+.h-cen{padding-top:clamp(40px,6vw,96px)}
+.cen-in{text-align:center;display:flex;flex-direction:column;align-items:center}
+.cen-in .lead,.cen-in .statement{margin-left:auto;margin-right:auto}
+.cen-in .acts,.cen-in .rating{justify-content:center}
+.mon-t{line-height:.9;letter-spacing:var(--dt)}
+.h-cen .statement{margin-top:clamp(20px,2.4vw,32px)}
+.cen-media{position:relative;height:clamp(320px,48vw,680px);margin-top:clamp(32px,4vw,64px);overflow:hidden;
+-webkit-mask-image:linear-gradient(180deg,transparent 0%,#000 34%,#000 74%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0%,#000 34%,#000 74%,transparent 100%)}
+.cen-media .hp-img{animation:drift 26s ease-in-out infinite alternate}
+.media.soft{border-radius:var(--rc)}
 /* topo: afirmação */
 .h-stat .g{align-items:end;padding-top:clamp(32px,5vw,88px);padding-bottom:clamp(64px,7vw,112px)}
 .st-copy{grid-column:1/8;padding-bottom:clamp(0px,2vw,24px)}
@@ -578,12 +650,14 @@ nav{display:flex;gap:32px;font-size:15px;font-weight:500;margin-left:auto}
 @supports (animation-timeline:view()){
  .rv{animation:rise linear forwards;animation-timeline:view();animation-range:entry 0% cover calc(22% + var(--i,0) * 6%)}
 }
-@media(prefers-reduced-motion:reduce){.rise,.rv,.media img,.plate svg,.ph,.fl span{animation:none}html{scroll-behavior:auto}}
+@media(prefers-reduced-motion:reduce){.rise,.rv,.media img,.plate svg,.ph,.fl span,.hp-img{animation:none}html{scroll-behavior:auto}}
 /* tablet: o topo vira uma coluna, com o título no tamanho calculado para a largura toda */
 @media(max-width:1080px){
  nav{display:none}
  .h1,.mon,.poster-h{font-size:var(--fsm)}
  .fl span:nth-child(-n+5){display:none}
+ .imm-copy{max-width:72%}
+ .fade-copy{max-width:52%}
  .hero .g>*{grid-column:1/-1!important}
  .st-media,.mon-media,.poster-media,.q-r{margin-top:48px}
  .st-media .media,.mon-media .media,.poster-media .media{aspect-ratio:16/10}
@@ -602,6 +676,12 @@ nav{display:flex;gap:32px;font-size:15px;font-weight:500;margin-left:auto}
 @media(max-width:760px){
  body{font-size:17px;padding-bottom:84px}
  .fl span:nth-child(-n+6){display:none}
+ .imm-scrim{background:var(--scrim-m)}
+ .h-imm{min-height:0;align-items:flex-end;padding:44vh 0 56px}
+ .imm-copy,.fade-copy{max-width:none}
+ .h-fade{min-height:0;align-items:flex-end;padding:42vh 0 56px}
+ .fade-bg{width:100%;bottom:auto;height:58vh;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 80px,#000 52%,transparent 100%);mask-image:linear-gradient(180deg,transparent 0,#000 80px,#000 52%,transparent 100%);-webkit-mask-composite:source-over;mask-composite:add}
+ .cen-media{height:56vw;min-height:240px}
  .h1,.mon,.tel-mon,.ct-tel,.ft-name,.poster-h{font-size:var(--fsm)}
  .g>*,.rows li>*,.board li>*,.why-stack li>*,.why-band li>*,.why-columns li>*{grid-column:1/-1!important}
  .top .bar{min-height:72px}.top .btn{display:none}
@@ -643,7 +723,7 @@ function doc(c: Ctx, body: string) {
 <style>${css(c)}</style></head><body${f.upper ? ' class="up"' : ""}>${body}</body></html>`;
 }
 
-const NO_MOTION = "<style>.rise,.rv,.media img,.plate svg,.ph,.fl span{animation:none!important}*{transition:none!important}</style>";
+const NO_MOTION = "<style>.rise,.rv,.media img,.plate svg,.ph,.fl span,.hp-img{animation:none!important}*{transition:none!important}</style>";
 
 /** Topo completo: cabeçalho, faixa, topo e a divisória que leva à próxima seção */
 function stage(c: Ctx) {
@@ -657,6 +737,14 @@ function stage(c: Ctx) {
   const bg = layers.length ? `;background:${layers.join(",")}${deco.heroBg ? "" : `,${v.bg}`}` : "";
   const stripHtml = deco.strip ? `<div class="strip" aria-hidden="true" style="background:${strip(deco.strip, pal.accent, pal.dark, pal.light)}"></div>` : "";
   let heroHtml = hero(c);
+  let imm = "";
+  if (heroHtml.includes('class="hero h-fade"')) imm = `<div class="fade-bg">${photoDiv(c, heroSrc(c))}</div>`;
+  if (heroHtml.includes('class="hero h-imm"')) {
+    const b = v.bg;
+    const scrim = `linear-gradient(180deg,${alpha(b, 0.85)} 0,${alpha(b, 0)} 150px),linear-gradient(90deg,${b} 0%,${alpha(b, 0.9)} 28%,${alpha(b, 0.45)} 52%,${alpha(b, 0)} 78%),linear-gradient(0deg,${b} 0%,${alpha(b, 0)} 26%)`;
+    const scrimM = `linear-gradient(180deg,${alpha(b, 0.7)} 0,${alpha(b, 0.05)} 26%,${alpha(b, 0.75)} 48%,${b} 64%)`;
+    imm = `${photoDiv(c, heroSrc(c), "hp-img imm-bg")}<div class="imm-scrim" style="--scrim:${scrim};--scrim-m:${scrimM}"></div>`;
+  }
   if (deco.floaters) heroHtml = heroHtml.replace(/^(<section[^>]*>)/, `$1${floaters(deco.floaters, deco.floaters === "bubbles" || deco.floaters === "snow" ? v.fg : pal.accent)}`);
 
   // a divisória tem a cor do fim do topo e fica sobre a cor da próxima seção visível
@@ -669,10 +757,10 @@ function stage(c: Ctx) {
       : !h.why && d.benefits.length ? field(c, "why")
       : !h.about && d.about ? field(c, "about")
       : field(c, "contact", "dark");
-    const end = deco.heroBg ? heroEnd(deco.heroBg, v.bg, pal.accent, pal.dark) : v.bg;
+    const end = imm.includes("imm-scrim") || !deco.heroBg ? v.bg : heroEnd(deco.heroBg, v.bg, pal.accent, pal.dark);
     dv = `<div class="dv dv-${deco.divider}" style="background:${fieldVars(pal, next).bg}">${divider(deco.divider, end, pal.accent)}</div>`;
   }
-  return `<div class="stage" style="${fieldCss(pal, kind)}${bg}">${header(c)}${stripHtml}${heroHtml}</div>${dv}`;
+  return `<div class="stage${imm ? " has-imm" : ""}" style="${fieldCss(pal, kind)}${bg}">${imm}${header(c)}${stripHtml}${heroHtml}</div>${dv}`;
 }
 
 export function renderSite(d: SiteData, o: RenderOptions = {}) {
