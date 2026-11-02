@@ -222,7 +222,7 @@ export function Editor({
   const niche = nicheById(d.nicheId);
 
   return (
-    <div className="-m-5 md:-m-10">
+    <div className="-m-5 md:-m-10 lg:flex lg:h-screen lg:flex-col">
       {/* Barra superior */}
       <div className="sticky top-0 z-30 flex flex-wrap items-center justify-between gap-3 border-b border-line bg-bg/95 px-5 py-3 backdrop-blur md:px-8">
         <div className="min-w-0">
@@ -255,9 +255,9 @@ export function Editor({
         </div>
       )}
 
-      <div className="grid lg:grid-cols-[400px_1fr]">
+      <div className="grid lg:min-h-0 lg:flex-1 lg:grid-cols-[400px_1fr]">
         {/* Painel de edição */}
-        <div className="border-line lg:h-[calc(100vh-61px)] lg:overflow-y-auto lg:border-r">
+        <div className="border-line lg:h-full lg:min-h-0 lg:overflow-y-auto lg:border-r">
           <div className="flex gap-1 border-b border-line px-4 pt-3">
             {(
               [
@@ -569,7 +569,7 @@ export function Editor({
         </div>
 
         {/* Prévia */}
-        <div className="bg-[#e9e6de] p-4 lg:h-[calc(100vh-61px)] lg:overflow-hidden lg:p-6">
+        <div className="bg-[#e9e6de] p-4 lg:h-full lg:min-h-0 lg:overflow-hidden lg:p-6">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex rounded-xl border border-line bg-surface p-1">
               {(["desktop", "mobile"] as const).map((x) => (
