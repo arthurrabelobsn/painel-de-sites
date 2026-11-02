@@ -78,7 +78,8 @@ const field = (c: Ctx, sec: keyof NonNullable<Preset["fields"]>, fallback: Field
 function wordmark(c: Ctx) {
   const { d } = c;
   if (d.logo) return `<img class="wm-img" src="${d.logo}" alt="${esc(d.name)}"/>`;
-  return `<span class="wm-name">${esc(d.name)}</span>`;
+  // sem logo enviado: selo com as iniciais na cor do negócio + o nome
+  return `<span class="wm-mark" aria-hidden="true">${esc(initials(d.name))}</span><span class="wm-name">${esc(d.name)}</span>`;
 }
 
 function ctas(c: Ctx, alt = true) {
@@ -449,7 +450,7 @@ function css(c: Ctx) {
   return `
 *{box-sizing:border-box;margin:0;padding:0}
 :root{${fieldCss(pal, "ground")};--fd:${f.display},system-ui,sans-serif;--ft:${f.text},system-ui,sans-serif;--dw:${f.weight};--dt:${f.track}em;--dl:${f.lead};--dc:${up};--tw:${f.textWeight ?? 400};
---m:clamp(20px,3.2vw,48px);--gap:clamp(16px,2vw,32px);--sec:clamp(80px,8.4vw,124px);--h2m:${Math.min(9.5, 5.2 / (f.cw * (f.upper ? 1.22 : 1))).toFixed(2)}vw;--rb:${rb};--rc:${rc};
+--m:clamp(20px,3.2vw,48px);--gap:clamp(16px,2vw,32px);--sec:clamp(80px,8.4vw,124px);--h2m:${Math.min(9.5, 5.2 / (f.cw * (f.upper ? 1.22 : 1))).toFixed(2)}vw;--rb:${rb};--rc:${rc};--rm:${p.btn === "pill" ? "50%" : "8px"};
 --ease-out:cubic-bezier(.23,1,.32,1);--ease-io:cubic-bezier(.77,0,.175,1)}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{font:var(--tw) 18px/1.55 var(--ft);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;overflow-x:hidden}
@@ -480,7 +481,8 @@ transition:transform 160ms var(--ease-out),opacity 200ms ease;touch-action:manip
 .rating{display:flex;align-items:center;gap:8px;margin-top:22px;font-size:15px}.rating span{color:var(--mut)}
 /* cabeçalho: marca, três links, uma ação */
 .top .bar{display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:88px}
-.wm{display:flex;align-items:center;min-width:0}
+.wm{display:flex;align-items:center;gap:12px;min-width:0}
+.wm-mark{display:grid;place-items:center;flex:none;width:42px;height:42px;border-radius:var(--rm);background:var(--act);color:var(--on-act);font:var(--dw) 16px/1 var(--fd);letter-spacing:0;text-transform:uppercase}
 .wm-name{font:var(--dw) 21px/1.1 var(--fd);letter-spacing:var(--dt);text-transform:var(--dc);max-width:22ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .wm-img{height:48px;width:auto;object-fit:contain}
 nav{display:flex;gap:32px;font-size:15px;font-weight:500;margin-left:auto}

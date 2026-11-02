@@ -13,9 +13,9 @@ export type OutreachTemplate = {
 export const OUTREACH: OutreachTemplate[] = [
   {
     id: "ask",
-    label: "1º contato — oferecer a demo",
+    label: "Oferecer a demo, sem link",
     channel: "whatsapp",
-    hint: "Curto, sem link. Pergunta se pode mandar a demonstração. Bom para quebrar o gelo.",
+    hint: "Pergunta se pode mandar a demonstração, sem dizer que já está pronta. A mais leve.",
     body: {
       en: "Hi {name}! I'm {sender}, I design websites for local businesses. I noticed you don't have a website yet, so I put together a free preview of what yours could look like. Can I send it over? No cost and no commitment.",
       de: "Hallo {name}! Ich bin {sender} und erstelle Websites für lokale Betriebe. Mir ist aufgefallen, dass Sie noch keine Website haben – deshalb habe ich einen kostenlosen Entwurf für Sie vorbereitet. Darf ich ihn Ihnen schicken? Unverbindlich und kostenlos.",
@@ -39,6 +39,51 @@ export const OUTREACH: OutreachTemplate[] = [
       it: "Ciao {name}! Sono {sender}. Ho creato una demo del sito per la vostra attività a {city}, eccola: {link}\n\nCi sono già contatti, servizi e un pulsante per chiamare. Se vi piace, la metto online questa settimana con il vostro dominio. Posso modificare tutto ciò che volete.",
       pt: "Olá, {name}! Sou o {sender}. Criei uma demonstração de site para o vosso negócio em {city}, podem ver aqui: {link}\n\nJá tem os contactos, os serviços e um botão para ligar. Se gostarem, coloco-o online esta semana com o vosso próprio domínio. Posso alterar o que quiserem.",
       nl: "Hallo {name}! Ik ben {sender}. Ik heb een websitevoorbeeld gemaakt voor jullie zaak in {city}, hier te bekijken: {link}\n\nContactgegevens, diensten en een belknop staan er al in. Als het bevalt, zet ik het deze week online met jullie eigen domeinnaam. Aanpassingen zijn geen probleem.",
+    },
+  },
+  {
+    id: "demo_short",
+    label: "Curta, com o link",
+    channel: "whatsapp",
+    hint: "Duas frases e o link. Boa para quem lê rápido no celular.",
+    body: {
+      en: "Hi {name}, {sender} here. I made a free website preview for your business: {link}\nTake a look when you have a minute and let me know what you think!",
+      de: "Hallo {name}, hier ist {sender}. Ich habe einen kostenlosen Website-Entwurf für Ihren Betrieb erstellt: {link}\nSchauen Sie gern kurz rein und sagen Sie mir, was Sie davon halten!",
+      fr: "Bonjour {name}, c'est {sender}. J'ai préparé une maquette de site gratuite pour votre commerce : {link}\nJetez-y un œil quand vous avez une minute et dites-moi ce que vous en pensez !",
+      es: "Hola, {name}, soy {sender}. He preparado una demo gratuita de web para vuestro negocio: {link}\nEchadle un vistazo cuando tengáis un momento y decidme qué os parece.",
+      it: "Ciao {name}, sono {sender}. Ho preparato una demo gratuita del sito per la vostra attività: {link}\nDateci un'occhiata quando avete un minuto e fatemi sapere cosa ne pensate!",
+      pt: "Olá, {name}, é o {sender}. Preparei uma demonstração gratuita de site para o vosso negócio: {link}\nDeem uma vista de olhos quando tiverem um minuto e digam-me o que acham!",
+      nl: "Hallo {name}, met {sender}. Ik heb een gratis websitevoorbeeld voor jullie zaak gemaakt: {link}\nKijk er gerust even naar en laat me weten wat jullie ervan vinden!",
+    },
+  },
+  {
+    id: "demo_google",
+    label: "Argumento do Google, com o link",
+    channel: "whatsapp",
+    hint: "Explica por que um site traz clientes e termina com uma pergunta.",
+    body: {
+      en: "Hello {name}! When people in {city} search Google for a business like yours, they usually pick one with a website. I built a free preview of yours so you can see how it would look: {link}\nWould you like me to put it online for you? {sender}",
+      de: "Hallo {name}! Wenn Menschen in {city} bei Google nach einem Betrieb wie Ihrem suchen, wählen sie meist einen mit Website. Ich habe Ihnen einen kostenlosen Entwurf gebaut, damit Sie sehen, wie Ihre aussehen könnte: {link}\nSoll ich sie für Sie online stellen? {sender}",
+      fr: "Bonjour {name} ! Quand les gens à {city} cherchent un commerce comme le vôtre sur Google, ils choisissent en général celui qui a un site. J'ai créé une maquette gratuite du vôtre pour que vous voyiez le rendu : {link}\nVoulez-vous que je le mette en ligne pour vous ? {sender}",
+      es: "¡Hola, {name}! Cuando la gente de {city} busca en Google un negocio como el vuestro, suele elegir uno que tenga web. Os he hecho una demo gratuita para que veáis cómo quedaría la vuestra: {link}\n¿Queréis que la ponga online? {sender}",
+      it: "Ciao {name}! Quando le persone a {city} cercano su Google un'attività come la vostra, di solito scelgono quella con un sito. Ho creato una demo gratuita per farvi vedere come sarebbe il vostro: {link}\nVolete che lo metta online per voi? {sender}",
+      pt: "Olá, {name}! Quando as pessoas em {city} procuram no Google um negócio como o vosso, costumam escolher um que tenha site. Fiz uma demonstração gratuita para verem como ficaria o vosso: {link}\nQuerem que o coloque online? {sender}",
+      nl: "Hallo {name}! Als mensen in {city} op Google zoeken naar een zaak zoals die van jullie, kiezen ze meestal er een met een website. Ik heb een gratis voorbeeld gemaakt zodat jullie kunnen zien hoe die eruit zou zien: {link}\nZal ik hem voor jullie online zetten? {sender}",
+    },
+  },
+  {
+    id: "ready",
+    label: "Demo pronta, sem link",
+    channel: "whatsapp",
+    hint: "Diz que o site já está feito e pede um “sim” para mandar o link. Menos risco de bloqueio.",
+    body: {
+      en: "Hi {name}, I'm {sender}. I've already designed a website for your business in {city}, with your contact details, services and opening hours. Can I send you the link to have a look? It's free.",
+      de: "Hallo {name}, ich bin {sender}. Ich habe bereits eine Website für Ihren Betrieb in {city} gestaltet – mit Kontaktdaten, Leistungen und Öffnungszeiten. Darf ich Ihnen den Link schicken? Kostenlos.",
+      fr: "Bonjour {name}, je suis {sender}. J'ai déjà conçu un site pour votre commerce à {city}, avec vos coordonnées, vos services et vos horaires. Je peux vous envoyer le lien pour le voir ? C'est gratuit.",
+      es: "Hola, {name}, soy {sender}. Ya he diseñado una web para vuestro negocio en {city}, con vuestros datos de contacto, servicios y horario. ¿Os paso el enlace para verla? Es gratis.",
+      it: "Ciao {name}, sono {sender}. Ho già realizzato un sito per la vostra attività a {city}, con contatti, servizi e orari. Posso mandarvi il link per vederlo? È gratis.",
+      pt: "Olá, {name}, sou o {sender}. Já desenhei um site para o vosso negócio em {city}, com os contactos, os serviços e o horário. Posso enviar o link para verem? É gratuito.",
+      nl: "Hallo {name}, ik ben {sender}. Ik heb al een website ontworpen voor jullie zaak in {city}, met contactgegevens, diensten en openingstijden. Mag ik de link sturen om te bekijken? Het is gratis.",
     },
   },
   {

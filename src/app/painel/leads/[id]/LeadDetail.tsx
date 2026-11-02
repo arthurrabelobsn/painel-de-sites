@@ -195,23 +195,23 @@ export function LeadDetail({ lead, sites, profile }: { lead: Lead; sites: SiteRo
               <p className="mt-2 text-[14px] text-muted">Disponível depois que o site for criado: a mensagem já sai com o link da demonstração.</p>
             ) : (
               <>
-                <p className="mb-4 mt-1 text-[14px] text-muted">O link da demonstração já está na mensagem. Ajuste se quiser e envie.</p>
+                <p className="mb-4 mt-1 text-[14px] text-muted">As mensagens com link já levam a demonstração. Ajuste se quiser e envie.</p>
 
-                <div className="mb-2 grid gap-2 sm:grid-cols-2">
+                <p className="mb-2 text-[13px] font-semibold">Com o link</p>
+                <div className="mb-4 grid gap-2 sm:grid-cols-2">
                   {withLink.map((t) => (
                     <TplButton key={t.id} t={t} active={tplId === t.id} onClick={() => setTplId(t.id)} />
                   ))}
                 </div>
-                {others.length > 0 && (
-                  <details className="mb-4">
-                    <summary className="cursor-pointer text-[13px] text-muted hover:text-ink">Outras mensagens (sem link)</summary>
-                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                      {others.map((t) => (
-                        <TplButton key={t.id} t={t} active={tplId === t.id} onClick={() => setTplId(t.id)} />
-                      ))}
-                    </div>
-                  </details>
-                )}
+                <p className="mb-1 text-[13px] font-semibold">Sem link</p>
+                <p className="mb-2 text-[12px] leading-snug text-muted">
+                  Para números que nunca falaram com você, o WhatsApp bloqueia com mais facilidade mensagens com link. Mande uma destas primeiro e o link quando a pessoa responder.
+                </p>
+                <div className="mb-4 grid gap-2 sm:grid-cols-2">
+                  {others.map((t) => (
+                    <TplButton key={t.id} t={t} active={tplId === t.id} onClick={() => setTplId(t.id)} />
+                  ))}
+                </div>
 
                 {missingSender && (
                   <p className="mb-3 rounded-xl bg-accent-soft px-3 py-2 text-[13px]">
@@ -245,7 +245,7 @@ export function LeadDetail({ lead, sites, profile }: { lead: Lead; sites: SiteRo
                   <button className="btn-ghost" onClick={copy}>{copied ? "✓ Copiado" : "Copiar mensagem"}</button>
                 </div>
                 <p className="mt-4 text-[12px] leading-relaxed text-muted">
-                  Ao enviar ou copiar, o cliente passa para “Demo enviada”. Mande uma mensagem por negócio, sempre se identifique e respeite quem pedir para não ser contatado.
+                  Ao enviar ou copiar, o cliente passa para “Demo enviada” (mensagem com link) ou “Contatado” (sem link). Mande uma mensagem por negócio, sempre se identifique e respeite quem pedir para não ser contatado.
                   Nem todo número fixo tem WhatsApp; se não abrir, use ligação ou e-mail.
                 </p>
               </>
