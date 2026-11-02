@@ -23,6 +23,7 @@ import { nicheById } from "@/lib/data/niches";
 import { photosFor, photoUrl } from "@/lib/data/photos";
 import { downloadHtml, downloadZip, exportPdf, resizeImage } from "@/lib/export";
 import { Notice } from "@/components/Notice";
+import { FlowSteps } from "@/components/FlowSteps";
 
 type Tab = "modelo" | "textos" | "contato" | "visual" | "ia";
 
@@ -94,7 +95,7 @@ export function Editor({
     setTimeout(() => setMsg(null), 4000);
   }
 
-  async function save(): Promise<string | null> {
+  async function save(goNext = false): Promise<string | null> {
     setBusy("save");
     const html = renderSite(d);
     const user = (await supabase.auth.getSession()).data.session?.user;
@@ -125,9 +126,15 @@ export function Editor({
     setBusy(null);
     setDirty(false);
     flash("ok", "Site salvo.");
-    if (!siteId && id) router.replace(`/painel/sites/${id}`);
-    else router.refresh();
+    if (!siteId && id && !goNext) router.replace(`/painel/sites/${id}`);
+    else if (!goNext) router.refresh();
     return id;
+  }
+
+  /** Etapa 2 → 3: salva e vai para a mensagem do cliente, já com o link */
+  async function saveAndNext() {
+    const id = await save(true);
+    if (id && leadId) router.push(`/painel/leads/${leadId}#mensagem`);
   }
 
   async function copyDemoLink() {
@@ -226,11 +233,19 @@ export function Editor({
             Site de demonstração {dirty && <span className="ml-1 text-[12px] font-medium text-accent">● não salvo</span>}
           </p>
         </div>
+        {leadId && (
+          <div className="order-last w-full lg:order-none lg:w-auto">
+            <FlowSteps leadId={leadId} siteId={siteId} current={2} siteDone={!!siteId} sentDone={false} compact />
+          </div>
+        )}
         <div className="flex flex-wrap gap-2">
           <button className="btn-ghost py-2" onClick={copyDemoLink} disabled={!!busy}>🔗 Copiar link da demo</button>
           <button className="btn-ghost py-2" onClick={runPdf} disabled={!!busy}>{busy === "pdf" ? "Gerando PDF…" : "📄 Exportar PDF"}</button>
           <button className="btn-ghost py-2" onClick={() => setShowPublish(true)}>🚀 Publicar</button>
-          <button className="btn-primary py-2" onClick={save} disabled={!!busy}>{busy === "save" ? "Salvando…" : "Salvar"}</button>
+          <button className={`${leadId ? "btn-ghost" : "btn-primary"} py-2`} onClick={() => save()} disabled={!!busy}>{busy === "save" ? "Salvando…" : "Salvar"}</button>
+          {leadId && (
+            <button className="btn-primary py-2" onClick={saveAndNext} disabled={!!busy}>Salvar e enviar mensagem →</button>
+          )}
         </div>
       </div>
 
@@ -305,6 +320,7 @@ export function Editor({
             {tab === "textos" && (
               <>
                 <Field label="Nome do negócio" value={d.name} onChange={(v) => set("name", v)} />
+                <Field label="Aviso acima do título (opcional)" value={d.heroNote ?? ""} onChange={(v) => set("heroNote", v)} />
                 <Field label="Título principal" value={d.headline} onChange={(v) => set("headline", v)} />
                 <Field label="Subtítulo" value={d.sub} onChange={(v) => set("sub", v)} area />
                 <Field label="Sobre o negócio" value={d.about} onChange={(v) => set("about", v)} area rows={4} />

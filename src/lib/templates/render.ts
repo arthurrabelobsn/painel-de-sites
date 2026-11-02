@@ -509,6 +509,9 @@ nav{display:flex;gap:32px;font-size:15px;font-weight:500;margin-left:auto}
 .mw.ring .fr{transform:scale(1.06) rotate(-3deg);opacity:.5}
 .plate{position:relative}
 .ph{position:absolute;inset:0;background-size:cover;background-repeat:no-repeat;animation:drift 22s ease-in-out infinite alternate}
+/* aviso acima do título (promoção, novidade) */
+.note{display:inline-flex;align-items:center;max-width:100%;margin-bottom:clamp(18px,2vw,28px);padding:9px 16px;border-radius:var(--rb);background:var(--act);color:var(--on-act);font:600 15px/1.3 var(--ft);letter-spacing:0;text-transform:none;text-wrap:balance}
+.h-mon .note{margin-top:8px}
 /* topos com foto: imersivo, lateral suave e centralizado */
 .hp-img{position:absolute;inset:0;background-size:cover;background-position:center;background-repeat:no-repeat}
 .stage.has-imm{overflow:hidden;isolation:isolate}
@@ -739,6 +742,7 @@ function stage(c: Ctx) {
   const bg = layers.length ? `;background:${layers.join(",")}${deco.heroBg ? "" : `,${v.bg}`}` : "";
   const stripHtml = deco.strip ? `<div class="strip" aria-hidden="true" style="background:${strip(deco.strip, pal.accent, pal.dark, pal.light)}"></div>` : "";
   let heroHtml = hero(c);
+  if (d.heroNote?.trim()) heroHtml = heroHtml.replace("<h1", `<p class="note rise">${esc(d.heroNote.trim())}</p><h1`);
   let imm = "";
   if (heroHtml.includes('class="hero h-fade"')) imm = `<div class="fade-bg">${photoDiv(c, heroSrc(c))}</div>`;
   if (heroHtml.includes('class="hero h-imm"')) {

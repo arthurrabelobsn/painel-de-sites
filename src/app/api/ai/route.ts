@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient, getSessionUser } from "@/lib/supabase/server";
 import { type Lang } from "@/lib/data/locales";
 import { nicheById } from "@/lib/data/niches";
+import { photosFor } from "@/lib/data/photos";
 import {
   BLOCK_POSITIONS,
   BLOCK_TYPES,
@@ -56,6 +57,14 @@ function cleanPatch(raw: Record<string, unknown>, current: SiteData) {
     if (typeof set[k] === "boolean") patch[k] = set[k] as boolean;
   }
   if (typeof set.template === "string" && TEMPLATES.some((t) => t.id === set.template)) patch.template = set.template as SiteData["template"];
+  // topo: aviso acima do título (string vazia remove) e fotos de banco do nicho
+  if (typeof set.heroNote === "string") patch.heroNote = set.heroNote.trim().slice(0, 120);
+  const ids = photosFor(current.nicheId).map((p) => p.id);
+  for (const k of ["heroPhoto", "aboutPhoto"] as const) {
+    const v = set[k];
+    if (v === "none" || v === "") patch[k] = "";
+    else if (typeof v === "string" && ids.includes(v)) patch[k] = v;
+  }
   if (Array.isArray(set.hours)) patch.hours = (set.hours as unknown[]).map((h) => str(h, 80)).filter(Boolean).slice(0, 7) as string[];
 
   const items = (arr: unknown, min: number, max: number) => {
@@ -135,6 +144,9 @@ export async function POST(req: Request) {
   const editable = {
     template: site.template,
     name: site.name,
+    heroNote: site.heroNote ?? "",
+    heroPhoto: site.heroImage ? "(own uploaded photo)" : site.heroPhoto ?? photosFor(site.nicheId)[0]?.id ?? "",
+    aboutPhoto: site.aboutImage ? "(own uploaded photo)" : site.aboutPhoto ?? photosFor(site.nicheId)[1]?.id ?? "",
     headline: site.headline,
     sub: site.sub,
     about: site.about,
@@ -169,7 +181,7 @@ USER REQUEST (Portuguese):
 Return ONLY a JSON object with these optional keys:
 {
   "summary": "1-2 short sentences IN PORTUGUESE (Brazil) telling the user what you changed",
-  "set": { any of: "template" (one id from TEMPLATES below), "name", "headline", "sub", "about",
+  "set": { any of: "template" (one id from TEMPLATES below), "name", "heroNote", "headline", "sub", "about", "heroPhoto", "aboutPhoto",
            "services": [{"title","desc"}] (1-8), "benefits": [{"title","desc"}] (exactly 3),
            "phone", "email", "address", "city", "hours": ["Monday: 9:00–18:00", ...],
            "primary","dark","light" (hex like #1d6fe0; "light" must be a very light tint, "dark" a very dark shade),
@@ -177,6 +189,10 @@ Return ONLY a JSON object with these optional keys:
   "hidden": { "services"|"why"|"about"|"contact": true to hide, false to show },
   "blocks": [ FULL list of extra sections after your edit (keep existing ones you are not removing, with the same "id") ]
 }
+
+THE TOP OF THE PAGE (hero) is fully editable through "set": it shows, in order, "heroNote" (optional short announcement shown right above the headline, max ~90 characters, e.g. a promotion or news; "" removes it), "headline" (the main title), "sub" (one supporting sentence), the call and WhatsApp buttons and the Google rating, plus the hero photo. When the user asks to put something "before/above the title", "at the top" or "in the hero", use "heroNote", "headline" or "sub" — never say it is impossible.
+HERO/ABOUT PHOTOS: "heroPhoto" and "aboutPhoto" take one id from this list, or "none" for no photo (if the user uploaded their own photo it overrides these):
+${photosFor(site.nicheId).map((p) => `- ${p.id}: ${p.alt}`).join("\n")}
 
 TEMPLATES (id: look):
 ${TEMPLATES.filter((t) => !t.niche || t.niche === site.nicheId).map((t) => `- ${t.id}: ${t.description}`).join("\n")}

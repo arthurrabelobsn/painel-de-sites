@@ -28,9 +28,9 @@ export const OUTREACH: OutreachTemplate[] = [
   },
   {
     id: "demo",
-    label: "Enviar a demo pronta",
+    label: "WhatsApp com a demo",
     channel: "whatsapp",
-    hint: "Com o link da demonstração. Use depois que gerar o site.",
+    hint: "Curta e direta, com o link da demonstração. A melhor para o 1º contato.",
     body: {
       en: "Hi {name}! I'm {sender}. I created a website preview for your business in {city} — you can see it here: {link}\n\nIt already has your contact details, services and a call button. If you like it, I can put it live with your own domain this week. Happy to make any changes you want.",
       de: "Hallo {name}! Ich bin {sender}. Ich habe einen Website-Entwurf für Ihren Betrieb in {city} erstellt – hier können Sie ihn ansehen: {link}\n\nKontaktdaten, Leistungen und ein Anruf-Button sind schon drin. Wenn er Ihnen gefällt, stelle ich ihn diese Woche mit Ihrer eigenen Domain online. Änderungen sind natürlich jederzeit möglich.",

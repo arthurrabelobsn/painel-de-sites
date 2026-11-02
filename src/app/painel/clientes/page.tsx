@@ -97,7 +97,8 @@ export default function FindClientsPage() {
     setBusyId(null);
     if (error) return setError(error.message);
     setResults((prev) => prev.map((x) => (x.place_id === r.place_id ? { ...x, saved: true } : x)));
-    if (open) router.push(`/painel/leads/${data.id}`);
+    // etapa 1 → 2: o cliente escolhido vai direto para a criação do site
+    if (open) router.push(`/painel/sites/novo?lead=${data.id}`);
   }
 
   return (
@@ -253,7 +254,7 @@ export default function FindClientsPage() {
                 <button className="btn-ghost py-2" disabled={busyId === r.place_id} onClick={() => save(r, false)}>Salvar</button>
               )}
               <button className="btn-primary py-2" disabled={busyId === r.place_id} onClick={() => save(r, true)}>
-                Abordar e gerar site →
+                Criar site →
               </button>
             </div>
           </div>

@@ -66,6 +66,7 @@ export type SiteData = {
   lang: Lang;
   nicheId: string;
   name: string;
+  heroNote?: string; // aviso curto acima do título (promoção, novidade); vazio = sem aviso
   headline: string;
   sub: string;
   about: string;
