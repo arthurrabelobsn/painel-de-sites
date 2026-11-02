@@ -11,6 +11,8 @@ import { SITE_UI } from "../data/locales";
 import { icon } from "./icons";
 import { applyBlocks } from "./blocks";
 import { FONTS, MOTIFS, presetById, type FontSystem, type Preset } from "./presets";
+import { brushStroke, divider, floaters, heroBackground, heroEnd, pattern, strip } from "./deco";
+import { photosFor, photoUrl } from "../data/photos";
 import { fieldCss, fieldVars, mix, onColor, contrast, type FieldKind, type Palette } from "./theme";
 import type { RenderOptions, SiteData } from "./types";
 
@@ -94,22 +96,50 @@ function rating(c: Ctx) {
   return `<p class="rating">${icon("star", 18, "#f5b301", 1.5, "#f5b301")}<b>${d.rating.toFixed(1)}</b><span>${d.reviews ?? ""} ${esc(ui.rating)}</span></p>`;
 }
 
-/** Imagem do topo na forma do modelo; sem foto, um desenho chapado com o símbolo do ofício */
-function media(c: Ctx, cls: string, onField: FieldKind, pos = "50% 50%") {
+const STOCK = /^photo-[\w-]+$/;
+
+/** Foto de banco escolhida: undefined = a padrão do nicho; "" = nenhuma */
+function stock(c: Ctx, which: "hero" | "about") {
   const { d } = c;
-  if (d.heroImage)
-    return `<div class="media mf ${cls}"><img src="${d.heroImage}" alt="${esc(d.name)}" style="object-position:${pos}"/></div>`;
-  const plateKind: FieldKind = onField === "accent" ? "dark" : onField === "dark" ? "accent" : "accent";
-  const v = fieldVars(c.pal, plateKind);
-  return `<div class="media mf plate ${cls}" style="background:${v.bg};color:${v.fg}" role="img" aria-label="${esc(d.name)}">${icon(d.nicheId, 120, "currentColor", 0.9)}</div>`;
+  const list = photosFor(d.nicheId);
+  const chosen = which === "hero" ? d.heroPhoto : d.aboutPhoto;
+  const id = chosen === undefined ? list[which === "hero" ? 0 : 1]?.id ?? "" : chosen;
+  if (!id || !STOCK.test(id)) return null;
+  return { id, alt: list.find((x) => x.id === id)?.alt ?? d.name };
 }
 
-/** Selo com as iniciais do nome, na forma do modelo (seção "sobre", quando não há foto) */
+/** Moldura decorativa atrás da imagem (sombra deslocada, brilho ou contorno) */
+function framed(c: Ctx, inner: string, cls: string) {
+  const fr = c.p.deco?.frame;
+  if (!fr || cls.includes("split")) return inner;
+  const col = fr === "glow" ? c.pal.accent : mix(c.pal.accent, c.pal.light, 0.35);
+  return `<div class="mw ${fr}" style="--frc:${col}"><div class="fr mf"></div>${inner}</div>`;
+}
+
+/** Imagem na forma do modelo: foto enviada, foto de banco do nicho ou, sem nenhuma, o desenho do ofício */
+function media(c: Ctx, cls: string, onField: FieldKind, pos = "50% 50%", which: "hero" | "about" = "hero") {
+  const { d } = c;
+  const upload = which === "hero" ? d.heroImage : d.aboutImage;
+  if (upload)
+    return framed(c, `<div class="media mf ${cls}"><img src="${upload}" alt="${esc(d.name)}" style="object-position:${pos}"/></div>`, cls);
+  const plateKind: FieldKind = onField === "accent" ? "dark" : "accent";
+  const v = fieldVars(c.pal, plateKind);
+  const ph = stock(c, which);
+  const photo = ph ? `<div class="ph" style="background-image:url('${photoUrl(ph.id, which === "hero" ? 1600 : 1100)}');background-position:${pos}"></div>` : "";
+  return framed(
+    c,
+    `<div class="media mf plate ${cls}" style="background:${v.bg};color:${v.fg}" role="img" aria-label="${esc(ph?.alt ?? d.name)}">${icon(d.nicheId, 120, "currentColor", 0.9)}${photo}</div>`,
+    cls,
+  );
+}
+
+/** Seção "sobre": foto (enviada ou de banco) ou um selo com as iniciais do nome */
 function seal(c: Ctx, onField: FieldKind) {
   const { d } = c;
+  if (d.aboutImage || stock(c, "about")) return media(c, "about-media", onField, "50% 40%", "about");
   if (d.heroImage) return media(c, "about-media", onField, "50% 30%");
   const v = fieldVars(c.pal, onField === "dark" || c.p.mode === "dark" ? "accent" : "dark");
-  return `<div class="media mf seal" style="background:${v.bg};color:${v.fg}" role="img" aria-label="${esc(d.name)}"><span>${esc(initials(d.name))}</span></div>`;
+  return framed(c, `<div class="media mf seal" style="background:${v.bg};color:${v.fg}" role="img" aria-label="${esc(d.name)}"><span>${esc(initials(d.name))}</span></div>`, "");
 }
 
 function hoursTable(c: Ctx, cls = "hrs") {
@@ -149,14 +179,15 @@ function header(c: Ctx) {
     !h.contact ? `<a href="#contact">${esc(ui.contact)}</a>` : "",
   ].join("");
   const call = d.phone ? `<a class="btn btn-sm" href="${telHref(d)}">${icon("phone", 16)}<span>${esc(d.phone)}</span></a>` : "";
-  return `<header class="top" style="${fieldCss(c.pal, field(c, "hero"))}"><div class="wrap bar"><a class="wm" href="#top">${wordmark(c)}</a><nav aria-label="Menu">${links}</nav>${call}</div></header>`;
+  return `<header class="top"><div class="wrap bar"><a class="wm" href="#top">${wordmark(c)}</a><nav aria-label="Menu">${links}</nav>${call}</div></header>`;
 }
 
 /* ---------------- Topo (6 composições) ---------------- */
 function hero(c: Ctx) {
   const { d, p, f } = c;
   const fk = field(c, "hero");
-  const style = fieldCss(c.pal, fk);
+  const style = "";
+  const hx = p.deco?.h1Grad ? " grad" : "";
   const sub = d.sub ? `<p class="lead rise" style="--i:2">${esc(d.sub)}</p>` : "";
   const head = d.headline || d.name;
   const kind = p.hero === "phone" && !d.phone ? "statement" : p.hero;
@@ -174,14 +205,14 @@ function hero(c: Ctx) {
 
   if (kind === "split") {
     return `<section class="hero h-split" data-sec="hero" id="top" style="${style}">
-<div class="split-a"><div class="split-in"><h1 class="h1 rise" style="${fs(head, f, 46, 2, 40, 120, 28, 72)}">${esc(head)}</h1>${sub}<div class="rise" style="--i:3">${ctas(c)}${rating(c)}</div></div></div>
+<div class="split-a"><div class="split-in"><h1 class="h1${hx} rise" style="${fs(head, f, 46, 2, 40, 120, 28, 72)}">${esc(head)}</h1>${sub}<div class="rise" style="--i:3">${ctas(c)}${rating(c)}</div></div></div>
 <div class="split-b rise" style="--i:2">${media(c, "split-media", fk)}</div>
 </section>`;
   }
 
   if (kind === "phone") {
     return `<section class="hero h-phone" data-sec="hero" id="top" style="${style}"><div class="wrap">
-<div class="g"><div class="ph-copy"><h1 class="h1 rise" style="${fs(head, f, 56, 2, 40, 132, 28, 76)}">${esc(head)}</h1>${sub}</div>
+<div class="g"><div class="ph-copy"><h1 class="h1${hx} rise" style="${fs(head, f, 56, 2, 40, 132, 28, 76)}">${esc(head)}</h1>${sub}</div>
 <div class="ph-media rise" style="--i:3">${media(c, "", fk)}</div></div>
 <a class="tel-mon rise" style="--i:4;${fs(d.phone, { ...f, upper: false, cw: f.cw * 1.05 }, 92, 1, 48, 240, 40, 110)}" href="${telHref(d)}" aria-label="${esc(c.ui.callNow)}: ${esc(d.phone)}">${esc(d.phone)}</a>
 <div class="rise" style="--i:5">${ctas(c)}${rating(c)}</div>
@@ -190,7 +221,7 @@ function hero(c: Ctx) {
 
   if (kind === "poster") {
     return `<section class="hero h-poster" data-sec="hero" id="top" style="${style}"><div class="wrap">
-<h1 class="h1 poster-h rise" style="${fs(head, f, 92, 2, 52, 260, 30, 120)}">${esc(head)}</h1>
+<h1 class="h1${hx} poster-h rise" style="${fs(head, f, 92, 2, 52, 260, 30, 120)}">${esc(head)}</h1>
 <div class="g poster-row"><div class="poster-copy">${sub}<div class="rise" style="--i:3">${ctas(c)}${rating(c)}</div></div>
 <div class="poster-media rise" style="--i:4">${media(c, "", fk)}</div></div>
 </div></section>`;
@@ -198,7 +229,7 @@ function hero(c: Ctx) {
 
   if (kind === "quiet") {
     return `<section class="hero h-quiet" data-sec="hero" id="top" style="${style}"><div class="wrap">
-<div class="g"><h1 class="h1 q-h rise" style="${fs(head, f, 52, 2, 36, 96, 28, 52)}">${esc(head)}</h1>
+<div class="g"><h1 class="h1${hx} q-h rise" style="${fs(head, f, 52, 2, 36, 96, 28, 52)}">${esc(head)}</h1>
 <div class="q-r">${sub}<div class="rise" style="--i:3">${ctas(c)}${rating(c)}</div></div></div>
 <div class="q-media rise" style="--i:4">${media(c, "", fk)}</div>
 </div></section>`;
@@ -206,15 +237,22 @@ function hero(c: Ctx) {
 
   // statement
   return `<section class="hero h-stat" data-sec="hero" id="top" style="${style}"><div class="wrap g">
-<div class="st-copy"><h1 class="h1 rise" style="${fs(head, f, 54, 2, 42, 136, 28, 76)}">${esc(head)}</h1>${sub}<div class="rise" style="--i:3">${ctas(c)}${rating(c)}</div></div>
+<div class="st-copy"><h1 class="h1${hx} rise" style="${fs(head, f, 54, 2, 42, 136, 28, 76)}">${esc(head)}</h1>${p.deco?.underline ? brushStroke(c.pal.accent) : ""}${sub}<div class="rise" style="--i:3">${ctas(c)}${rating(c)}</div></div>
 <div class="st-media rise" style="--i:3">${media(c, "", fk)}</div>
 </div></section>`;
+}
+
+/** Textura nas faixas coloridas (só nas de cor chapada, para não pesar nas claras) */
+function bandBg(c: Ctx, kind: FieldKind) {
+  const pk = c.p.deco?.bandPattern;
+  if (!pk || kind === "ground" || kind === "tone") return "";
+  return `;background-image:${pattern(pk, fieldVars(c.pal, kind).fg, 0.13)}`;
 }
 
 /* ---------------- Assinaturas do nicho ---------------- */
 function signature(c: Ctx) {
   const { d, p, ui } = c;
-  const style = fieldCss(c.pal, field(c, "sig", "accent"));
+  const style = fieldCss(c.pal, field(c, "sig", "accent")) + bandBg(c, field(c, "sig", "accent"));
   if (p.sig === "callband" && d.phone)
     return `<section class="sec sig-call" style="${style}"><div class="wrap g">
 <h2 class="h2 rv">${esc(ui.callNow)}</h2>
@@ -276,7 +314,7 @@ function services(c: Ctx) {
 function why(c: Ctx) {
   const { d, p, ui } = c;
   if (!d.benefits.length) return "";
-  const style = fieldCss(c.pal, field(c, "why"));
+  const style = fieldCss(c.pal, field(c, "why")) + bandBg(c, field(c, "why"));
   const list = d.benefits
     .map((b, i) => `<li class="rv" style="--i:${i}">${p.why === "columns" ? `<span class="bul big mf" aria-hidden="true"></span>` : ""}<h3>${esc(b.title)}</h3>${b.desc ? `<p>${esc(b.desc)}</p>` : ""}</li>`)
     .join("");
@@ -407,6 +445,26 @@ nav{display:flex;gap:32px;font-size:15px;font-weight:500;margin-left:auto}
 .media img{width:100%;height:100%;object-fit:cover}
 .plate{display:grid;place-items:center}.plate svg{width:38%;height:auto}
 .seal{display:grid;place-items:center}.seal span{font:var(--dw) clamp(96px,14vw,240px)/1 var(--fd);letter-spacing:var(--dt);text-transform:var(--dc)}
+/* personalidade: palco do topo, faixa, elementos flutuantes, divisória, moldura */
+.stage{position:relative}
+.strip{height:12px}
+.hero{position:relative;overflow:hidden}
+.hero>*:not(.fl){position:relative;z-index:1}
+.fl{position:absolute;inset:0;pointer-events:none;z-index:0}
+.fl span{position:absolute;display:block;animation:bob var(--t) ease-in-out var(--d) infinite alternate}
+.fl svg{display:block}
+@keyframes bob{from{transform:translateY(0) rotate(0)}to{transform:translateY(-24px) rotate(14deg)}}
+.dv{line-height:0;position:relative;z-index:2}.dv svg{display:block;width:100%;height:clamp(34px,5.6vw,88px)}
+.dv-drips svg{height:clamp(44px,6.4vw,100px)}
+.grad{background:linear-gradient(100deg,var(--fg) 25%,var(--act-t) 95%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brush{display:block;width:min(72%,440px);height:20px;margin-top:14px}
+.mw{position:relative;isolation:isolate}
+.mw .fr{position:absolute;inset:0;z-index:-1;background:var(--frc)}
+.mw.offset .fr{transform:translate(clamp(10px,1.4vw,22px),clamp(10px,1.4vw,22px))}
+.mw.glow .fr{transform:scale(1.05);filter:blur(36px);opacity:.7}
+.mw.ring .fr{transform:scale(1.06) rotate(-3deg);opacity:.5}
+.plate{position:relative}
+.ph{position:absolute;inset:0;background-size:cover;background-repeat:no-repeat;animation:drift 22s ease-in-out infinite alternate}
 /* topo: afirmação */
 .h-stat .g{align-items:end;padding-top:clamp(32px,5vw,88px);padding-bottom:clamp(64px,7vw,112px)}
 .st-copy{grid-column:1/8;padding-bottom:clamp(0px,2vw,24px)}
@@ -516,15 +574,16 @@ nav{display:flex;gap:32px;font-size:15px;font-weight:500;margin-left:auto}
 @keyframes rise{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
 @keyframes drift{from{transform:scale(1.001)}to{transform:scale(1.06)}}
 .rise{animation:rise 760ms var(--ease-out) both;animation-delay:calc(var(--i,0) * 80ms)}
-.media img,.plate svg{animation:drift 20s ease-in-out infinite alternate}
+.media img,.plate>svg{animation:drift 20s ease-in-out infinite alternate}
 @supports (animation-timeline:view()){
  .rv{animation:rise linear forwards;animation-timeline:view();animation-range:entry 0% cover calc(22% + var(--i,0) * 6%)}
 }
-@media(prefers-reduced-motion:reduce){.rise,.rv,.media img,.plate svg{animation:none}html{scroll-behavior:auto}}
+@media(prefers-reduced-motion:reduce){.rise,.rv,.media img,.plate svg,.ph,.fl span{animation:none}html{scroll-behavior:auto}}
 /* tablet: o topo vira uma coluna, com o título no tamanho calculado para a largura toda */
 @media(max-width:1080px){
  nav{display:none}
  .h1,.mon,.poster-h{font-size:var(--fsm)}
+ .fl span:nth-child(-n+5){display:none}
  .hero .g>*{grid-column:1/-1!important}
  .st-media,.mon-media,.poster-media,.q-r{margin-top:48px}
  .st-media .media,.mon-media .media,.poster-media .media{aspect-ratio:16/10}
@@ -542,6 +601,7 @@ nav{display:flex;gap:32px;font-size:15px;font-weight:500;margin-left:auto}
 /* celular: uma composição própria, em uma coluna */
 @media(max-width:760px){
  body{font-size:17px;padding-bottom:84px}
+ .fl span:nth-child(-n+6){display:none}
  .h1,.mon,.tel-mon,.ct-tel,.ft-name,.poster-h{font-size:var(--fsm)}
  .g>*,.rows li>*,.board li>*,.why-stack li>*,.why-band li>*,.why-columns li>*{grid-column:1/-1!important}
  .top .bar{min-height:72px}.top .btn{display:none}
@@ -583,12 +643,42 @@ function doc(c: Ctx, body: string) {
 <style>${css(c)}</style></head><body${f.upper ? ' class="up"' : ""}>${body}</body></html>`;
 }
 
-const NO_MOTION = "<style>.rise,.rv,.media img,.plate svg{animation:none!important}*{transition:none!important}</style>";
+const NO_MOTION = "<style>.rise,.rv,.media img,.plate svg,.ph,.fl span{animation:none!important}*{transition:none!important}</style>";
+
+/** Topo completo: cabeçalho, faixa, topo e a divisória que leva à próxima seção */
+function stage(c: Ctx) {
+  const { d, p, pal } = c;
+  const deco = p.deco ?? {};
+  const kind = field(c, "hero");
+  const v = fieldVars(pal, kind);
+  const layers: string[] = [];
+  if (deco.pattern) layers.push(pattern(deco.pattern, v.fg, 0.08));
+  if (deco.heroBg) layers.push(heroBackground(deco.heroBg, v.bg, pal.accent, pal.light, pal.dark)!);
+  const bg = layers.length ? `;background:${layers.join(",")}${deco.heroBg ? "" : `,${v.bg}`}` : "";
+  const stripHtml = deco.strip ? `<div class="strip" aria-hidden="true" style="background:${strip(deco.strip, pal.accent, pal.dark, pal.light)}"></div>` : "";
+  let heroHtml = hero(c);
+  if (deco.floaters) heroHtml = heroHtml.replace(/^(<section[^>]*>)/, `$1${floaters(deco.floaters, deco.floaters === "bubbles" || deco.floaters === "snow" ? v.fg : pal.accent)}`);
+
+  // a divisória tem a cor do fim do topo e fica sobre a cor da próxima seção visível
+  let dv = "";
+  if (deco.divider) {
+    const h = d.hidden ?? {};
+    const next: FieldKind =
+      !h.services && d.services.length ? field(c, "services")
+      : p.sig ? field(c, "sig", "accent")
+      : !h.why && d.benefits.length ? field(c, "why")
+      : !h.about && d.about ? field(c, "about")
+      : field(c, "contact", "dark");
+    const end = deco.heroBg ? heroEnd(deco.heroBg, v.bg, pal.accent, pal.dark) : v.bg;
+    dv = `<div class="dv dv-${deco.divider}" style="background:${fieldVars(pal, next).bg}">${divider(deco.divider, end, pal.accent)}</div>`;
+  }
+  return `<div class="stage" style="${fieldCss(pal, kind)}${bg}">${header(c)}${stripHtml}${heroHtml}</div>${dv}`;
+}
 
 export function renderSite(d: SiteData, o: RenderOptions = {}) {
   const p = presetById(d.template);
   const c: Ctx = { d, p, f: FONTS[p.font], pal: palette(d, p), ui: SITE_UI[d.lang], o };
-  const body = [header(c), "<main>", hero(c), services(c), signature(c), why(c), about(c), contact(c), "</main>", footer(c), stickyBar(c), badge(c)].join("\n");
+  const body = [stage(c), "<main>", services(c), signature(c), why(c), about(c), contact(c), "</main>", footer(c), stickyBar(c), badge(c)].join("\n");
   const out = applyBlocks(doc(c, body), d);
   // PDF e miniaturas: sem animação, para a captura sair completa
   return o.forPdf ? out.replace("</head>", NO_MOTION + "</head>") : out;

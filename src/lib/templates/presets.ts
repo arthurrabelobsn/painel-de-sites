@@ -3,6 +3,7 @@
  * com base nas direções de arte da tasteskill (estudo de 247 sites de galeria) e nas regras de acabamento do Emil Kowalski.
  */
 import type { FieldKind } from "./theme";
+import type { Deco } from "./deco";
 
 /* ---------------- Tipografia (só Google Fonts, para o PDF conseguir carregar) ---------------- */
 export type FontSystem = {
@@ -101,6 +102,8 @@ export type Preset = {
   why: WhyKind;
   about: AboutKind;
   sig?: Signature;
+  /** degradês, divisórias, texturas e outros elementos de personalidade */
+  deco?: Deco;
   /** cor de cada faixa (o resto usa o fundo) */
   fields?: Partial<Record<"hero" | "services" | "why" | "about" | "contact" | "sig" | "footer", FieldKind>>;
 };
@@ -164,106 +167,127 @@ export const NICHE_PRESETS: Preset[] = [
   {
     id: "n-plumber", niche: "plumber", name: "Linha direta", description: "Gota como forma, telefone gigante e faixa de chamada urgente.",
     font: "barlow", mode: "light", motif: "drop", btn: "square", hero: "phone", services: "checklist", why: "stack", about: "facts", sig: "callband",
-    fields: { sig: "accent", why: "tone", contact: "dark" },
+    deco: { heroBg: "deep", divider: "waves", floaters: "bubbles", frame: "offset", bandPattern: "drops", pattern: "drops" },
+    fields: { hero: "dark", sig: "accent", why: "tone", contact: "dark" },
   },
   {
     id: "n-electrician", niche: "electrician", name: "Alta tensão", description: "Fundo escuro, cor de alerta e serviços em blocos de energia.",
     font: "chivo", mode: "dark", motif: "chamfer", btn: "square", hero: "phone", services: "tiles", why: "band", about: "facts", sig: "callband",
+    deco: { heroBg: "glow", divider: "zigzag", pattern: "circuit", bandPattern: "circuit", floaters: "sparks", h1Grad: true, frame: "glow" },
     fields: { sig: "accent", why: "tone", contact: "tone" },
   },
   {
     id: "n-locksmith", niche: "locksmith", name: "Fechadura", description: "A imagem vira buraco de fechadura; telefone 24h em destaque.",
     font: "shoulders", mode: "dark", motif: "keyhole", btn: "square", hero: "phone", services: "checklist", why: "stack", about: "facts", sig: "callband",
+    deco: { heroBg: "spot", divider: "steps", pattern: "keyholes", bandPattern: "keyholes", frame: "glow" },
     fields: { sig: "accent", contact: "tone" },
   },
   {
     id: "n-hvac", niche: "hvac", name: "Clima", description: "Círculos como termostato, metade da tela em cor fria.",
     font: "redhat", mode: "light", motif: "circle", btn: "pill", hero: "split", services: "checklist", why: "band", about: "media", sig: "callband",
+    deco: { heroBg: "deep", divider: "wave", floaters: "snow", bandPattern: "snow" },
     fields: { hero: "accent", sig: "dark", why: "light", contact: "dark" },
   },
   {
     id: "n-roofer", niche: "roofer", name: "Telhado", description: "A forma do telhado recorta as imagens; serifa forte de placa de obra.",
     font: "besley", mode: "paper", motif: "gable", btn: "square", hero: "statement", services: "rows", why: "band", about: "media",
+    deco: { heroBg: "tint", divider: "tiles", pattern: "scales", bandPattern: "scales", frame: "offset" },
     fields: { why: "dark", contact: "accent" },
   },
   {
     id: "n-painter", niche: "painter", name: "Cartela de cores", description: "Os serviços viram amostras de tinta, cada um num tom da cor do negócio.",
     font: "spartan", mode: "light", motif: "square", btn: "square", hero: "statement", services: "swatches", why: "columns", about: "facts",
+    deco: { heroBg: "mesh", divider: "drips", strip: "swatch", underline: true, frame: "offset" },
     fields: { why: "light", contact: "dark" },
   },
   {
     id: "n-carpenter", niche: "carpenter", name: "Oficina", description: "Cantos chanfrados como peça cortada, fundo papel e serifa de oficina.",
     font: "zilla", mode: "paper", motif: "chamfer", btn: "square", hero: "monument", services: "rows", why: "stack", about: "media",
+    deco: { heroBg: "warm", divider: "steps", pattern: "grain", bandPattern: "grain", frame: "offset" },
     fields: { why: "ground", contact: "dark" },
   },
   {
     id: "n-gardener", niche: "gardener", name: "Folha", description: "Folha como forma de todas as imagens, verde chapado e serifa calma.",
     font: "literata", mode: "paper", motif: "leaf", btn: "pill", hero: "split", services: "rows", why: "columns", about: "media",
+    deco: { heroBg: "deep", divider: "hills", floaters: "leaves", bandPattern: "leaves" },
     fields: { hero: "accent", why: "light", contact: "dark" },
   },
   {
     id: "n-cleaning", niche: "cleaning", name: "Brilho", description: "Claro e arejado, bolhas como forma e checklist do que é limpo.",
     font: "albert", mode: "light", motif: "circle", btn: "pill", hero: "statement", services: "checklist", why: "band", about: "facts",
+    deco: { heroBg: "mesh", divider: "wave", floaters: "bubbles", bandPattern: "sparkles", frame: "ring" },
     fields: { why: "accent", contact: "light" },
   },
   {
     id: "n-movers", niche: "movers", name: "Caixa", description: "Cartaz de mudança: letras condensadas, cor chapada, serviços em quadro.",
     font: "anton", mode: "light", motif: "square", btn: "square", hero: "poster", services: "board", why: "stack", about: "facts", sig: "callband",
+    deco: { heroBg: "deep", divider: "slant", strip: "tape", bandPattern: "dots", frame: "offset" },
     fields: { hero: "accent", services: "dark", sig: "light", contact: "accent" },
   },
   {
     id: "n-auto-repair", niche: "auto-repair", name: "Box", description: "Porca sextavada como forma, fundo escuro de oficina e quadro de serviços.",
     font: "redhat", mode: "dark", motif: "hex", btn: "square", hero: "poster", services: "board", why: "band", about: "facts",
+    deco: { heroBg: "glow", divider: "slant", strip: "checker", pattern: "hex", bandPattern: "hex", frame: "glow" },
     fields: { hero: "dark", services: "tone", why: "accent", contact: "tone" },
   },
   {
     id: "n-barber", niche: "barber", name: "Cadeira", description: "Letreiro condensado, espelho em cápsula e tabela de serviços como na parede.",
     font: "bebas", mode: "dark", motif: "capsule", btn: "square", hero: "monument", services: "board", why: "stack", about: "media", sig: "timetable",
+    deco: { heroBg: "spot", divider: "steps", strip: "pole", bandPattern: "dots", frame: "ring" },
     fields: { services: "tone", sig: "accent", contact: "tone" },
   },
   {
     id: "n-hair-salon", niche: "hair-salon", name: "Espelho", description: "Serifa de revista de moda, espelho oval e cardápio de serviços.",
     font: "bodoni", mode: "paper", motif: "oval", btn: "pill", hero: "split", services: "menu", why: "columns", about: "media", sig: "timetable",
+    deco: { heroBg: "mesh", divider: "scallop", floaters: "sparks", bandPattern: "sparkles", frame: "ring" },
     fields: { hero: "light", sig: "dark", contact: "accent" },
   },
   {
     id: "n-beauty", niche: "beauty", name: "Ritual", description: "Serifa leve e grande, muito respiro e tratamentos em cardápio.",
     font: "newsreader", mode: "paper", motif: "oval", btn: "pill", hero: "quiet", services: "menu", why: "columns", about: "media",
+    deco: { heroBg: "mesh", divider: "wave", floaters: "sparks", bandPattern: "petals", frame: "glow" },
     fields: { services: "light", why: "ground", contact: "dark" },
   },
   {
     id: "n-pet-grooming", niche: "pet-grooming", name: "Patinha", description: "Formas arredondadas, cores alegres e serviços em blocos coloridos.",
     font: "spartan", mode: "light", motif: "blob", btn: "pill", hero: "statement", services: "tiles", why: "band", about: "facts",
+    deco: { heroBg: "mesh", divider: "scallop", floaters: "paws", pattern: "paws", bandPattern: "paws", frame: "offset" },
     fields: { why: "light", contact: "accent" },
   },
   {
     id: "n-physio", niche: "physio", name: "Movimento", description: "Cápsulas como forma, tipografia limpa e passo a passo do cuidado.",
     font: "hanken", mode: "light", motif: "capsule", btn: "pill", hero: "statement", services: "rows", why: "stack", about: "media",
+    deco: { heroBg: "tint", divider: "pulse", bandPattern: "dots", frame: "ring" },
     fields: { why: "light", contact: "dark" },
   },
   {
     id: "n-clinic", niche: "clinic", name: "Consultório", description: "A cruz como forma, metade em cor clara e marcação de consulta em destaque.",
     font: "albert", mode: "light", motif: "cross", btn: "pill", hero: "split", services: "checklist", why: "columns", about: "facts", sig: "callband",
+    deco: { heroBg: "tint", divider: "pulse", pattern: "plus", bandPattern: "plus", frame: "offset" },
     fields: { hero: "light", sig: "accent", why: "tone", contact: "dark" },
   },
   {
     id: "n-restaurant", niche: "restaurant", name: "Mesa posta", description: "Diagramado como um cardápio impresso, prato redondo e horário da casa.",
     font: "franklin", mode: "paper", motif: "circle", btn: "square", hero: "monument", services: "menu", why: "columns", about: "media", sig: "timetable",
+    deco: { heroBg: "warm", divider: "scallop", strip: "gingham", bandPattern: "dots", frame: "offset" },
     fields: { services: "ground", sig: "dark", contact: "accent" },
   },
   {
     id: "n-bakery", niche: "bakery", name: "Forno", description: "A boca do forno em arco, o nome como letreiro e o horário das fornadas.",
     font: "bricolage", mode: "paper", motif: "arch", btn: "pill", hero: "monument", services: "menu", why: "columns", about: "media", sig: "timetable",
+    deco: { heroBg: "warm", divider: "scallop", pattern: "wheat", bandPattern: "wheat", frame: "offset" },
     fields: { sig: "accent", contact: "dark" },
   },
   {
     id: "n-cafe", niche: "cafe", name: "Balcão", description: "Xícara como forma, letras geométricas e a lousa do balcão.",
     font: "jostSentence", mode: "light", motif: "cup", btn: "square", hero: "split", services: "menu", why: "band", about: "media", sig: "timetable",
+    deco: { heroBg: "deep", divider: "wave", floaters: "steam", pattern: "beans", bandPattern: "beans", frame: "glow" },
     fields: { hero: "dark", why: "light", sig: "accent", contact: "dark" },
   },
   {
     id: "n-florist", niche: "florist", name: "Pétala", description: "Pétala como forma, serifa alta e cores de estação.",
     font: "imbue", mode: "paper", motif: "petal", btn: "pill", hero: "monument", services: "tiles", why: "columns", about: "media",
+    deco: { heroBg: "mesh", divider: "scallop", floaters: "petals", bandPattern: "petals", frame: "ring" },
     fields: { why: "light", contact: "accent" },
   },
 ];

@@ -20,6 +20,7 @@ import {
 } from "@/lib/templates/types";
 import { LANG_NAMES } from "@/lib/data/locales";
 import { nicheById } from "@/lib/data/niches";
+import { photosFor, photoUrl } from "@/lib/data/photos";
 import { downloadHtml, downloadZip, exportPdf, resizeImage } from "@/lib/export";
 import { Notice } from "@/components/Notice";
 
@@ -153,7 +154,7 @@ export function Editor({
     setBusy("ai");
     try {
       // fotos e logo não vão para a IA (pesadas e desnecessárias)
-      const site = { ...d, logo: "", heroImage: "" };
+      const site = { ...d, logo: "", heroImage: "", aboutImage: "" };
       const res = await fetch("/api/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -196,7 +197,7 @@ export function Editor({
     set("blocks", list);
   }
 
-  async function onUpload(e: React.ChangeEvent<HTMLInputElement>, field: "logo" | "heroImage") {
+  async function onUpload(e: React.ChangeEvent<HTMLInputElement>, field: "logo" | "heroImage" | "aboutImage") {
     const file = e.target.files?.[0];
     if (!file) return;
     const url = await resizeImage(file, field === "logo" ? 400 : 1600, field === "logo" ? "image/png" : "image/jpeg");
@@ -415,15 +416,27 @@ export function Editor({
                   <p className="mt-1.5 text-[12px] text-muted">Sem logo, o site usa as iniciais do negócio. Dica: pegue a logo do Instagram ou Facebook do negócio.</p>
                 </div>
 
-                <div>
-                  <label className="label">Imagem principal</label>
-                  <label className="btn-ghost cursor-pointer py-2 text-[13px]">
-                    {d.heroImage ? "Trocar foto" : "Enviar foto do negócio"}
-                    <input type="file" accept="image/*" hidden onChange={(e) => onUpload(e, "heroImage")} />
-                  </label>
-                  {d.heroImage && <button className="ml-3 text-[13px] text-muted hover:text-ink" onClick={() => set("heroImage", "")}>Usar arte do nicho</button>}
-                  <p className="mt-1.5 text-[12px] text-muted">Sem foto, o site usa uma arte vetorial do nicho com as cores escolhidas.</p>
-                </div>
+                <PhotoPicker
+                  label="Foto do topo"
+                  niche={d.nicheId}
+                  upload={d.heroImage}
+                  chosen={d.heroPhoto}
+                  fallbackIndex={0}
+                  onPick={(id) => setD((x) => ({ ...x, heroPhoto: id, heroImage: "" }))}
+                  onUpload={(e) => onUpload(e, "heroImage")}
+                  onClearUpload={() => set("heroImage", "")}
+                />
+                <PhotoPicker
+                  label="Foto da seção “sobre”"
+                  niche={d.nicheId}
+                  upload={d.aboutImage ?? ""}
+                  chosen={d.aboutPhoto}
+                  fallbackIndex={1}
+                  onPick={(id) => setD((x) => ({ ...x, aboutPhoto: id, aboutImage: "" }))}
+                  onUpload={(e) => onUpload(e, "aboutImage")}
+                  onClearUpload={() => set("aboutImage", "")}
+                  note="Aparece nos modelos que têm foto no “sobre”."
+                />
 
                 <div>
                   <label className="label">Paletas</label>
@@ -574,6 +587,58 @@ const Thumb = memo(function Thumb({ data, template }: { data: SiteData; template
     </div>
   );
 });
+
+/** Escolha de foto: as do banco do nicho, nenhuma (desenho do ofício) ou uma enviada pelo usuário */
+function PhotoPicker({
+  label, niche, upload, chosen, fallbackIndex, onPick, onUpload, onClearUpload, note,
+}: {
+  label: string;
+  niche: string;
+  upload: string;
+  chosen: string | undefined;
+  fallbackIndex: number;
+  onPick: (id: string) => void;
+  onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onClearUpload: () => void;
+  note?: string;
+}) {
+  const list = photosFor(niche);
+  const current = upload ? "upload" : chosen === undefined ? (list[fallbackIndex]?.id ?? "") : chosen;
+  const tile = "relative aspect-[4/3] overflow-hidden rounded-xl border-2 transition";
+  const on = "border-ink";
+  const off = "border-transparent hover:border-ink/30";
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <div className="grid grid-cols-3 gap-2">
+        {upload && (
+          <button className={`${tile} ${on}`} onClick={() => {}} title="Foto enviada">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={upload} alt="Foto enviada" className="h-full w-full object-cover" />
+            <span className="absolute bottom-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-[11px] text-white">Sua foto</span>
+          </button>
+        )}
+        {list.map((ph) => (
+          <button key={ph.id} className={`${tile} ${current === ph.id ? on : off} bg-surface`} onClick={() => onPick(ph.id)} title={ph.alt}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photoUrl(ph.id, 320)} alt={ph.alt} loading="lazy" className="h-full w-full object-cover" />
+          </button>
+        ))}
+        <button className={`${tile} ${current === "" ? on : off} grid place-items-center bg-surface text-[12px] text-muted`} onClick={() => onPick("")}>
+          Sem foto
+        </button>
+      </div>
+      <div className="mt-2 flex items-center gap-3">
+        <label className="btn-ghost cursor-pointer py-1.5 text-[13px]">
+          {upload ? "Trocar minha foto" : "Enviar foto do negócio"}
+          <input type="file" accept="image/*" hidden onChange={onUpload} />
+        </label>
+        {upload && <button className="text-[13px] text-muted hover:text-ink" onClick={onClearUpload}>Remover minha foto</button>}
+      </div>
+      <p className="mt-1.5 text-[12px] text-muted">{note ?? "Fotos do Unsplash, livres para uso comercial. A foto do próprio negócio sempre converte melhor."}</p>
+    </div>
+  );
+}
 
 function Field({ label, value, onChange, area, rows = 2 }: { label: string; value: string; onChange: (v: string) => void; area?: boolean; rows?: number }) {
   return (

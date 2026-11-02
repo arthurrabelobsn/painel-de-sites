@@ -82,7 +82,10 @@ export type SiteData = {
   reviews: number | null;
   showRating: boolean;
   logo: string; // data URL ou vazio (usa monograma)
-  heroImage: string; // data URL ou vazio (usa arte do nicho)
+  heroImage: string; // foto enviada (data URL); vazio = usa a foto de banco
+  heroPhoto?: string; // foto de banco do topo (id do Unsplash); ausente = a padrão do nicho; "" = sem foto
+  aboutImage?: string; // foto enviada para o "sobre"
+  aboutPhoto?: string; // foto de banco do "sobre"; ausente = a segunda do nicho; "" = sem foto
   primary: string;
   dark: string;
   light: string;
